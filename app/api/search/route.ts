@@ -344,7 +344,7 @@ export async function GET(request: NextRequest) {
       ? response.hits.total
       : response.hits.total.value;
 
-    let products = response.hits.hits.map(hit => ({
+    let products: Array<ProductSource & { score: number | null; highlighted?: { name?: string; description?: string } }> = response.hits.hits.map(hit => ({
       ...hit._source,
       score: hit._score,
       highlighted: {
