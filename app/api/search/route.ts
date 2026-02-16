@@ -410,7 +410,7 @@ export async function GET(request: NextRequest) {
               must: [{ terms: { category: userCategories.slice(0, 3) } }]
             }
           } as any,
-          sort: [{ rating: 'desc' as const }, { reviewCount: 'desc' as const }],
+          sort: [{ rating: { order: 'desc' as const } }, { reviewCount: { order: 'desc' as const } }],
           size: limit,
         }) as unknown as ElasticsearchSearchResponse;
 
@@ -442,7 +442,7 @@ export async function GET(request: NextRequest) {
               ]
             }
           } as any,
-          sort: [{ _score: 'desc' as const }, { rating: 'desc' as const }],
+          sort: [{ _score: { order: 'desc' as const } }, { rating: { order: 'desc' as const } }],
           size: limit,
         }) as unknown as ElasticsearchSearchResponse;
 
