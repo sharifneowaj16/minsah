@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
+import { productQueue } from '@/lib/queue/productQueue';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -247,6 +248,11 @@ export async function PUT(
       },
     });
 
+    // Queue ES sync – non-blocking
+    productQueue.add('index', { productId: updated.id }).catch((err) => {
+      console.error('[productQueue] Failed to enqueue index job for', updated.id, err);
+    });
+
     return NextResponse.json(formatProduct(updated));
   } catch (error) {
     console.error('Error updating product:', error);
@@ -267,6 +273,11 @@ export async function DELETE(
     }
 
     await prisma.product.delete({ where: { id } });
+
+    // Queue ES delete – non-blocking
+    productQueue.add('delete', { productId: id }).catch((err) => {
+      console.error('[productQueue] Failed to enqueue delete job for', id, err);
+    });
 
     return NextResponse.json({ message: 'Product deleted successfully' });
   } catch (error) {

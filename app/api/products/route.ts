@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
+import { productQueue } from '@/lib/queue/productQueue';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -331,6 +332,11 @@ export async function POST(request: NextRequest) {
         variants: true,
         reviews: { select: { rating: true } },
       },
+    });
+
+    // Queue ES sync – fire-and-forget so ES downtime never blocks the API
+    productQueue.add('index', { productId: product.id }).catch((err) => {
+      console.error('[productQueue] Failed to enqueue index job for', product.id, err);
     });
 
     return NextResponse.json(formatProduct(product), { status: 201 });
