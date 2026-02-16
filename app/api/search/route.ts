@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     const tags = searchParams.get('tags')?.split(',').filter(Boolean);
 
     const page = validateNumericParam(searchParams.get('page'), 1, 1, 1000);
-    const limit = validateNumericParam(searchParams.get('limit'), 20, 1, 100);
+    const limit = validateNumericParam(searchParams.get('limit'), 20, 1, 500);
     const sort = searchParams.get('sort') || 'relevance';
 
     // ✅ Get user behavior for personalization (returns null server-side, handled below)

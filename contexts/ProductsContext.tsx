@@ -73,76 +73,59 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // API থেকে products fetch করো
+  // ✅ Fetch ALL products from Elasticsearch (match_all, no query = promotional boosting)
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/products?activeOnly=false&limit=500');
-      if (!res.ok) throw new Error('Failed to fetch');
+      // No "q" → ES runs match_all + isFeatured/isFlashSale boosting
+      const res = await fetch('/api/search?limit=500&sort=featured');
+      if (!res.ok) throw new Error('Elasticsearch fetch failed');
       const data = await res.json();
 
-      // API response কে Product format-এ convert করো
+      // Map Elasticsearch product shape → ProductsContext Product shape
       const mapped: Product[] = (data.products || []).map((p: {
         id: string;
         name: string;
-        category: string;
-        brand: string;
-        price: number;
-        originalPrice?: number;
-        stock: number;
-        status: string;
-        image: string;
-        images?: string[];
-        rating: number;
-        reviews: number;
-        createdAt: string;
-        featured: boolean;
-        description?: string;
-        tags?: string;
-        metaTitle?: string;
-        metaDescription?: string;
         slug?: string;
-        variants?: Array<{
-          id: string;
-          sku: string;
-          name: string;
-          price: number;
-          stock: number;
-        }>;
+        category?: string;
+        subcategory?: string;
+        brand?: string;
+        price: number;
+        compareAtPrice?: number;
+        images?: string[];
+        inStock?: boolean;
+        rating?: number;
+        description?: string;
+        tags?: string[];
+        isFeatured?: boolean;
+        isFlashSale?: boolean;
+        isNewArrival?: boolean;
+        createdAt?: string;
       }) => ({
         id: p.id,
         name: p.name,
-        category: p.category,
-        brand: p.brand,
+        category: p.category ?? 'Uncategorized',
+        subcategory: p.subcategory,
+        brand: p.brand ?? 'Minsah Beauty',
         originCountry: 'Bangladesh (Local)',
         price: p.price,
-        originalPrice: p.originalPrice ?? undefined,
-        stock: p.stock,
-        status: p.status as 'active' | 'inactive' | 'out_of_stock',
-        image: p.image || '✨',
+        originalPrice: p.compareAtPrice ?? undefined,
+        stock: p.inStock ? 1 : 0,
+        status: (p.inStock === false ? 'out_of_stock' : 'active') as 'active' | 'inactive' | 'out_of_stock',
+        image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : '✨',
         images: p.images,
-        rating: p.rating,
-        reviews: p.reviews,
-        createdAt: p.createdAt,
-        featured: p.featured,
+        rating: p.rating ?? 0,
+        reviews: 0,
+        createdAt: p.createdAt ?? new Date().toISOString(),
+        featured: p.isFeatured ?? false,
         description: p.description,
-        tags: p.tags,
-        metaTitle: p.metaTitle,
-        metaDescription: p.metaDescription,
+        tags: Array.isArray(p.tags) ? p.tags.join(',') : undefined,
         urlSlug: p.slug,
-        variants: p.variants?.map(v => ({
-          id: v.id,
-          sku: v.sku,
-          size: '',
-          color: '',
-          price: String(v.price),
-          stock: String(v.stock),
-        })),
       }));
 
       setProducts(mapped);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching products from Elasticsearch:', error);
       setProducts([]);
     } finally {
       setLoading(false);

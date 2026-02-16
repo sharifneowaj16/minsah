@@ -117,8 +117,8 @@ export function validateSearchParams(searchParams: URLSearchParams): ValidationR
   const limit = searchParams.get('limit');
   if (limit) {
     const limitNum = parseInt(limit, 10);
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
-      errors.push('Invalid limit (must be between 1-100)');
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 500) {
+      errors.push('Invalid limit (must be between 1-500)');
     }
   }
 

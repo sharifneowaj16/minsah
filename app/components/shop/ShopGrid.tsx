@@ -1,14 +1,14 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ChevronRight, AlertCircle } from 'lucide-react';
-import { filterProducts, sortProducts, parseSearchParams } from '@/lib/shopUtils';
+import { parseSearchParams } from '@/lib/shopUtils';
 import ProductCard from './ProductCard';
 import ActiveFilters from './ActiveFilters';
 import SortDropdown from './SortDropdown';
-import type { Product as ShopProduct, SortOption } from '@/types/product';
+import type { Product as ShopProduct } from '@/types/product';
 
 function toSlug(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -158,68 +158,44 @@ export default function ShopGrid() {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        if (q.trim()) {
-          // ── Elasticsearch path ──────────────────────────────────────
-          const params = new URLSearchParams();
-          params.set('q', q);
-          params.set('page', String(page));
-          params.set('limit', String(pageSize));
+        // ✅ UNIFIED ELASTICSEARCH PATH — always uses /api/search
+        // When q is empty, Elasticsearch runs match_all with promotional boosting
+        // When q has a value, Elasticsearch runs full-text search
+        // Filters, sorting, and pagination are ALWAYS handled server-side by Elasticsearch
+        const params = new URLSearchParams();
+        if (q.trim()) params.set('q', q);
+        params.set('page', String(page));
+        params.set('limit', String(pageSize));
 
-          const category = searchParams.get('category');
-          const brand = searchParams.get('brand');
-          const minPrice = searchParams.get('minPrice');
-          const maxPrice = searchParams.get('maxPrice');
-          const sort = searchParams.get('sort');
-          const inStock = searchParams.get('inStockOnly');
-          const rating = searchParams.get('rating');
+        const category = searchParams.get('category');
+        const brand = searchParams.get('brand');
+        const minPrice = searchParams.get('minPrice');
+        const maxPrice = searchParams.get('maxPrice');
+        const sort = searchParams.get('sort');
+        const inStock = searchParams.get('inStockOnly');
+        const rating = searchParams.get('rating');
 
-          if (category) params.set('category', category);
-          if (brand) params.set('brand', brand);
-          if (minPrice) params.set('minPrice', minPrice);
-          if (maxPrice) params.set('maxPrice', maxPrice);
-          if (sort) params.set('sort', sort);
-          if (inStock === 'true') params.set('inStock', 'true');
-          if (rating) params.set('rating', rating);
+        if (category) params.set('category', category);
+        if (brand) params.set('brand', brand);
+        if (minPrice) params.set('minPrice', minPrice);
+        if (maxPrice) params.set('maxPrice', maxPrice);
+        if (sort) params.set('sort', sort);
+        if (inStock === 'true') params.set('inStock', 'true');
+        if (rating) params.set('rating', rating);
 
-          const res = await fetch(`/api/search?${params.toString()}`);
-          if (!res.ok) throw new Error('Search failed');
-          const data = await res.json();
+        const res = await fetch(`/api/search?${params.toString()}`);
+        if (!res.ok) throw new Error('Elasticsearch search failed');
+        const data = await res.json();
 
-          // API returns products at root level: data.products, data.total, data.totalPages
-          const esProducts: EsProduct[] = data.products ?? [];
-          setAllProducts(esProducts.map((p) => apiProductToShopProduct(esProductToApiProduct(p))));
-          setEsTotal(data.total ?? 0);
-          setEsTotalPages(data.totalPages ?? 1);
-          setSpellSuggestion(data.spellSuggestion ?? null);
-          setFallbackMessage(data.fallback?.message ?? null);
-          setFacets({ brands: data.facets?.brands ?? [] });
-        } else {
-          // ── Regular products API path ────────────────────────────────
-          setEsTotal(null);
-          setEsTotalPages(null);
-
-          const params = new URLSearchParams({ limit: '100', activeOnly: 'true' });
-
-          const category = searchParams.get('category');
-          const brand = searchParams.get('brand');
-          const search = searchParams.get('search');
-          const minPrice = searchParams.get('minPrice');
-          const maxPrice = searchParams.get('maxPrice');
-
-          if (category) params.set('category', category);
-          if (brand) params.set('brand', brand);
-          if (search) params.set('search', search);
-          if (minPrice) params.set('minPrice', minPrice);
-          if (maxPrice) params.set('maxPrice', maxPrice);
-
-          const res = await fetch(`/api/products?${params.toString()}`);
-          if (!res.ok) throw new Error('Failed to fetch products');
-          const data = await res.json();
-          const apiProds: ApiProduct[] = data.products || [];
-          setAllProducts(apiProds.map(apiProductToShopProduct));
-        }
+        const esProducts: EsProduct[] = data.products ?? [];
+        setAllProducts(esProducts.map((p) => apiProductToShopProduct(esProductToApiProduct(p))));
+        setEsTotal(data.total ?? 0);
+        setEsTotalPages(data.totalPages ?? 1);
+        setSpellSuggestion(data.spellSuggestion ?? null);
+        setFallbackMessage(data.fallback?.message ?? null);
+        setFacets({ brands: data.facets?.brands ?? [] });
       } catch (err) {
-        console.error('Failed to load products:', err);
+        console.error('Failed to load products from Elasticsearch:', err);
       } finally {
         setLoading(false);
       }
@@ -228,28 +204,11 @@ export default function ShopGrid() {
     fetchProducts();
   }, [searchParams, q, page]);
 
-  // For ES results, server already paginated; for regular, do client-side
-  const displayProducts = useMemo(() => {
-    if (q.trim()) {
-      // ES already returned the right page
-      return allProducts;
-    }
-    const filtered = filterProducts(allProducts, filters);
-    const sorted = sortProducts(filtered, (filters.sort || 'featured') as SortOption);
-    const start = (page - 1) * pageSize;
-    return sorted.slice(start, start + pageSize);
-  }, [allProducts, filters, q, page]);
-
-  const totalCount = q.trim()
-    ? (esTotal ?? 0)
-    : (() => {
-        const filtered = filterProducts(allProducts, filters);
-        return filtered.length;
-      })();
-
-  const totalPages = q.trim()
-    ? (esTotalPages ?? 1)
-    : Math.ceil(totalCount / pageSize);
+  // ES handles all filtering, sorting, and pagination server-side
+  // displayProducts is exactly what ES returned for the current page
+  const displayProducts = allProducts;
+  const totalCount = esTotal ?? 0;
+  const totalPages = esTotalPages ?? 1;
 
   const start = (page - 1) * pageSize;
   const hasMore = page < totalPages;
