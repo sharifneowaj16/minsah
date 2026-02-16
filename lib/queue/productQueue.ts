@@ -58,7 +58,12 @@ const globalForQueue = globalThis as unknown as {
 };
 
 function createQueue(): Queue<ProductJobData> {
-  return new Queue<ProductJobData>('product-sync', {
+  // BullMQ v5 uses ExtractDataType<DataTypeOrJob, DataTypeOrJob> internally,
+  // which is a deferred conditional type. TypeScript won't resolve it for
+  // union DataType arguments, causing a false "no overload matches" error.
+  // Omitting the generic lets the constructor infer `any`; the cast restores
+  // the full typed surface for callers.
+  return new Queue('product-sync', {
     connection: bullRedis,
     defaultJobOptions: {
       attempts: 5,
@@ -69,7 +74,7 @@ function createQueue(): Queue<ProductJobData> {
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 200 },
     },
-  });
+  }) as unknown as Queue<ProductJobData>;
 }
 
 export const productQueue: Queue<ProductJobData> =
