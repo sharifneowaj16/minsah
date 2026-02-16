@@ -23,9 +23,6 @@ interface InstantSearchProps {
   className?: string;
 }
 
-// Products loaded from API/database
-const mockProducts: Product[] = [];
-
 export default function InstantSearch({
   placeholder = 'Search for products...',
   maxResults = 5,
@@ -50,7 +47,7 @@ export default function InstantSearch({
     }, 300);
   };
 
-  // Mock search function - replace with actual API call
+  // Real API search
   const performSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -59,19 +56,30 @@ export default function InstantSearch({
     }
 
     setIsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}&limit=${maxResults}`
+      );
+      if (!res.ok) throw new Error('Search failed');
+      const data = await res.json();
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Mock search logic - replace with actual API call
-    const filtered = mockProducts.filter(product =>
-      product.name.toLowerCase().includes(query.toLowerCase()) ||
-      product.category?.toLowerCase().includes(query.toLowerCase()) ||
-      product.description?.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, maxResults);
-
-    setSearchResults(filtered);
-    setIsLoading(false);
+      // API returns data.products (root level)
+      const rawProducts = data.products ?? [];
+      const mapped: Product[] = rawProducts.slice(0, maxResults).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        originalPrice: p.compareAtPrice ?? p.originalPrice,
+        image: Array.isArray(p.images) ? p.images[0] : (p.image ?? ''),
+        category: p.category,
+        description: p.description,
+      }));
+      setSearchResults(mapped);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle input change
@@ -202,7 +210,18 @@ export default function InstantSearch({
                   >
                     {/* Product Image */}
                     <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg flex items-center justify-center overflow-hidden">
-                      <Package className="w-8 h-8 text-pink-400" />
+                      {product.image ? (
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <Package className="w-8 h-8 text-pink-400" />
+                      )}
                     </div>
 
                     {/* Product Info */}

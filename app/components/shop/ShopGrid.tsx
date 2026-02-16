@@ -2,8 +2,8 @@
 
 import { useMemo, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { ChevronRight } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { ChevronRight, AlertCircle } from 'lucide-react';
 import { filterProducts, sortProducts, parseSearchParams } from '@/lib/shopUtils';
 import ProductCard from './ProductCard';
 import ActiveFilters from './ActiveFilters';
@@ -140,10 +140,14 @@ function apiProductToShopProduct(p: ApiProduct): ShopProduct {
 
 export default function ShopGrid() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [allProducts, setAllProducts] = useState<ShopProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [esTotal, setEsTotal] = useState<number | null>(null);
   const [esTotalPages, setEsTotalPages] = useState<number | null>(null);
+  const [spellSuggestion, setSpellSuggestion] = useState<string | null>(null);
+  const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
+  const [facets, setFacets] = useState<{ brands: { value: string; count: number }[] }>({ brands: [] });
 
   const q = searchParams.get('q') || '';
   const filters = parseSearchParams(searchParams as unknown as URLSearchParams);
@@ -181,10 +185,14 @@ export default function ShopGrid() {
           if (!res.ok) throw new Error('Search failed');
           const data = await res.json();
 
-          const esProducts: EsProduct[] = data.data?.products ?? [];
+          // API returns products at root level: data.products, data.total, data.totalPages
+          const esProducts: EsProduct[] = data.products ?? [];
           setAllProducts(esProducts.map((p) => apiProductToShopProduct(esProductToApiProduct(p))));
-          setEsTotal(data.data?.pagination?.total ?? 0);
-          setEsTotalPages(data.data?.pagination?.totalPages ?? 1);
+          setEsTotal(data.total ?? 0);
+          setEsTotalPages(data.totalPages ?? 1);
+          setSpellSuggestion(data.spellSuggestion ?? null);
+          setFallbackMessage(data.fallback?.message ?? null);
+          setFacets({ brands: data.facets?.brands ?? [] });
         } else {
           // ── Regular products API path ────────────────────────────────
           setEsTotal(null);
@@ -260,8 +268,86 @@ export default function ShopGrid() {
     );
   }
 
+  // Handler for spell correction click
+  const applySpellSuggestion = () => {
+    if (!spellSuggestion) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('q', spellSuggestion);
+    router.push(`/shop?${params.toString()}`);
+  };
+
+  // Brand filter click
+  const applyBrandFilter = (brandValue: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (brandValue) {
+      params.set('brand', brandValue);
+    } else {
+      params.delete('brand');
+    }
+    router.push(`/shop?${params.toString()}`);
+  };
+
+  const currentBrand = searchParams.get('brand') || '';
+
   return (
     <>
+      {/* Did you mean? */}
+      {spellSuggestion && (
+        <div className="mb-4 flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm">
+          <AlertCircle size={16} className="text-yellow-600 flex-shrink-0" />
+          <span className="text-yellow-800">
+            Did you mean:{' '}
+            <button
+              onClick={applySpellSuggestion}
+              className="font-semibold text-minsah-primary underline underline-offset-2 hover:text-minsah-dark"
+            >
+              {spellSuggestion}
+            </button>
+            ?
+          </span>
+        </div>
+      )}
+
+      {/* Fallback notice */}
+      {fallbackMessage && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800 flex items-center gap-2">
+          <AlertCircle size={16} className="text-blue-600 flex-shrink-0" />
+          {fallbackMessage}
+        </div>
+      )}
+
+      {/* Brand filter chips (from facets) */}
+      {facets.brands.length > 0 && (
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Filter by Brand</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => applyBrandFilter('')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                !currentBrand
+                  ? 'bg-minsah-primary text-white border-minsah-primary'
+                  : 'border-gray-200 text-gray-600 hover:border-minsah-primary hover:text-minsah-primary'
+              }`}
+            >
+              All
+            </button>
+            {facets.brands.slice(0, 10).map(b => (
+              <button
+                key={b.value}
+                onClick={() => applyBrandFilter(b.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  currentBrand === b.value
+                    ? 'bg-minsah-primary text-white border-minsah-primary'
+                    : 'border-gray-200 text-gray-600 hover:border-minsah-primary hover:text-minsah-primary'
+                }`}
+              >
+                {b.value} <span className="opacity-60">({b.count})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="flex-1">
           <ActiveFilters totalProducts={totalCount} />
