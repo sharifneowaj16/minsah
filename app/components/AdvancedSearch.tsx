@@ -95,6 +95,10 @@ export default function AdvancedSearch({
     hasSearched: false,
   });
 
+  // Extra API response fields
+  const [spellSuggestion, setSpellSuggestion] = useState<string | null>(null);
+  const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
+
   // Voice search state
   const [voiceState, setVoiceState] = useState<VoiceSearchState>({
     isListening: false,
@@ -270,14 +274,18 @@ export default function AdvancedSearch({
       const data = await response.json();
 
       if (data.success) {
+        // API returns data.products at root level (not data.data.products)
+        const products = data.products || [];
         setSearchState(prev => ({
           ...prev,
-          results: data.data.products || [],
+          results: products,
           isLoading: false,
         }));
+        setSpellSuggestion(data.spellSuggestion || null);
+        setFallbackMessage(data.fallback?.message || null);
 
-        if (query.trim() && data.data.products.length > 0) {
-          saveToHistory(query, data.data.products.length);
+        if (query.trim() && products.length > 0) {
+          saveToHistory(query, products.length);
         }
 
         updateURL(query, searchState.filters, searchState.sort);
@@ -720,6 +728,31 @@ export default function AdvancedSearch({
       {/* Results Section */}
       {searchState.hasSearched && (
         <div className="bg-white rounded-lg shadow-md p-4">
+          {/* Did you mean? */}
+          {spellSuggestion && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2 text-sm">
+              <span className="text-yellow-600">🔤</span>
+              <span className="text-yellow-800">
+                Did you mean:{' '}
+                <button
+                  onClick={() => handleSuggestionClick({ id: 'spell', text: spellSuggestion, type: 'suggestion' })}
+                  className="font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-800"
+                >
+                  {spellSuggestion}
+                </button>
+                ?
+              </span>
+            </div>
+          )}
+
+          {/* Fallback message */}
+          {fallbackMessage && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 flex items-center gap-2">
+              <span className="text-blue-500">ℹ️</span>
+              {fallbackMessage}
+            </div>
+          )}
+
           {/* Results Header */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">

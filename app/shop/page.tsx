@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { parseSearchParams, generatePageTitle, generateMetaDescription } from '@/lib/shopUtils';
 import ShopGrid from '@/app/components/shop/ShopGrid';
+import ShopSearchBar from '@/app/components/shop/ShopSearchBar';
 
 // Generate dynamic metadata
 export async function generateMetadata({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }): Promise<Metadata> {
@@ -59,7 +60,7 @@ export default function ShopPage({ searchParams }: { searchParams: { [key: strin
           </div>
 
           {/* Page Title */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-minsah-dark">
                 Shop Beauty Products
@@ -69,6 +70,11 @@ export default function ShopPage({ searchParams }: { searchParams: { [key: strin
               </p>
             </div>
           </div>
+
+          {/* Search bar */}
+          <Suspense fallback={null}>
+            <ShopSearchBar />
+          </Suspense>
         </div>
       </div>
 
