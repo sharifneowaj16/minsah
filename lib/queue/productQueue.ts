@@ -11,28 +11,29 @@
  */
 
 import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
+import type { ConnectionOptions } from 'bullmq';
+import { Redis } from 'ioredis';
 
 // ─── Redis connection for BullMQ ────────────────────────────────────────────
 // BullMQ needs its own IORedis instance (it calls .duplicate() internally).
-function createBullRedis(): IORedis {
+function createBullRedis(): Redis {
   const url = process.env.REDIS_URL;
   if (!url) {
     console.warn('[productQueue] REDIS_URL not set – using redis://localhost:6379');
-    return new IORedis({
+    return new Redis({
       host: 'localhost',
       port: 6379,
       maxRetriesPerRequest: null, // required by BullMQ
       lazyConnect: true,
     });
   }
-  return new IORedis(url, {
+  return new Redis(url, {
     maxRetriesPerRequest: null, // required by BullMQ
     enableReadyCheck: false,
   });
 }
 
-export const bullRedis = createBullRedis();
+export const bullRedis: Redis = createBullRedis();
 
 // ─── Job payload types ───────────────────────────────────────────────────────
 export interface IndexJobData {
@@ -64,7 +65,9 @@ function createQueue(): Queue<ProductJobData> {
   // Omitting the generic lets the constructor infer `any`; the cast restores
   // the full typed surface for callers.
   return new Queue('product-sync', {
-    connection: bullRedis,
+    // bullRedis is ioredis@project; BullMQ bundles its own ioredis copy.
+    // Both are structurally identical at runtime; cast bridges the type gap.
+    connection: bullRedis as unknown as ConnectionOptions,
     defaultJobOptions: {
       attempts: 5,
       backoff: {
