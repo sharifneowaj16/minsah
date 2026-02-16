@@ -16,7 +16,7 @@
  */
 
 import { Worker, type Job } from 'bullmq';
-import { bullRedis, type ProductJobData } from '@/lib/queue/productQueue';
+import { bullRedis, type ProductJobData, type IndexJobData, type DeleteJobData } from '@/lib/queue/productQueue';
 import { transformProductToES } from '@/lib/search/productTransformer';
 import { esClient, PRODUCT_INDEX } from '@/lib/elasticsearch';
 import prisma from '@/lib/prisma';
@@ -124,11 +124,11 @@ export function startProductWorker(): Worker {
 
       try {
         if (name === 'index') {
-          const { productId } = data as { productId: string };
+          const { productId } = data as IndexJobData;
           await handleIndex(productId);
 
         } else if (name === 'delete') {
-          const { productId } = data as { productId: string };
+          const { productId } = data as DeleteJobData;
           await handleDelete(productId);
 
         } else if (name === 'reindex') {

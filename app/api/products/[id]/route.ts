@@ -249,7 +249,7 @@ export async function PUT(
     });
 
     // Queue ES sync – non-blocking
-    productQueue.add('index', { productId: updated.id }).catch((err) => {
+    productQueue.add('index', { type: 'index', productId: updated.id }).catch((err) => {
       console.error('[productQueue] Failed to enqueue index job for', updated.id, err);
     });
 
@@ -275,7 +275,7 @@ export async function DELETE(
     await prisma.product.delete({ where: { id } });
 
     // Queue ES delete – non-blocking
-    productQueue.add('delete', { productId: id }).catch((err) => {
+    productQueue.add('delete', { type: 'delete', productId: id }).catch((err) => {
       console.error('[productQueue] Failed to enqueue delete job for', id, err);
     });
 
