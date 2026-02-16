@@ -36,14 +36,17 @@ export const bullRedis = createBullRedis();
 
 // ─── Job payload types ───────────────────────────────────────────────────────
 export interface IndexJobData {
+  type: 'index';
   productId: string;
 }
 
 export interface DeleteJobData {
+  type: 'delete';
   productId: string;
 }
 
 export interface ReindexJobData {
+  type: 'reindex';
   requestedAt: string; // ISO timestamp so jobs are distinguishable in the UI
 }
 

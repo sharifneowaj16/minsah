@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Queue ES sync – fire-and-forget so ES downtime never blocks the API
-    productQueue.add('index', { productId: product.id }).catch((err) => {
+    productQueue.add('index', { type: 'index', productId: product.id }).catch((err) => {
       console.error('[productQueue] Failed to enqueue index job for', product.id, err);
     });
 
