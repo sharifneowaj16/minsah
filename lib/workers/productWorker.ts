@@ -15,7 +15,7 @@
  *   npx tsx lib/workers/productWorker.ts
  */
 
-import { Worker, type Job } from 'bullmq';
+import { Worker, type Job, type ConnectionOptions } from 'bullmq';
 import { bullRedis, type ProductJobData, type IndexJobData, type DeleteJobData } from '@/lib/queue/productQueue';
 import { transformProductToES } from '@/lib/search/productTransformer';
 import { esClient, PRODUCT_INDEX } from '@/lib/elasticsearch';
@@ -143,7 +143,9 @@ export function startProductWorker(): Worker {
       }
     },
     {
-      connection: bullRedis,
+      // bullRedis is ioredis@project; BullMQ bundles its own ioredis copy.
+      // Both are structurally identical at runtime; cast bridges the type gap.
+      connection: bullRedis as unknown as ConnectionOptions,
       concurrency: 3,
     }
   );
