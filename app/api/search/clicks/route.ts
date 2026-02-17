@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BehaviorTracker } from '@/lib/tracking/behavior';
+import { TRACKING_EVENTS } from '@/types/tracking';
 import prisma from '@/lib/prisma';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 
@@ -58,13 +59,13 @@ export async function POST(request: NextRequest) {
     const deviceId: string | null = null;
     const sessionId: string | null = null;
 
-    // ✅ Track in behavior system (no-op server-side, runs on client)
-    // 'ViewContent' is the closest standard event for clicking a search result
-    BehaviorTracker.trackEvent('ProductView', {
-      productId,
+    // No-op server-side (window check inside); runs on client via hydration
+    BehaviorTracker.trackEvent(TRACKING_EVENTS.VIEW_CONTENT, {
+      content_ids: [productId],
       content_name: productName,
-      category,
+      content_category: category,
       value: price,
+      currency: 'USD',
     });
 
     // ========================================

@@ -1,4 +1,21 @@
 // Universal Tracking Event Types for All Platforms
+export const TRACKING_EVENTS = {
+  PAGE_VIEW: 'PageView',
+  VIEW_CONTENT: 'ViewContent',
+  SEARCH: 'Search',
+  ADD_TO_CART: 'AddToCart',
+  ADD_TO_WISHLIST: 'AddToWishlist',
+  INITIATE_CHECKOUT: 'InitiateCheckout',
+  ADD_PAYMENT_INFO: 'AddPaymentInfo',
+  PURCHASE: 'Purchase',
+  LEAD: 'Lead',
+  COMPLETE_REGISTRATION: 'CompleteRegistration',
+  SUBSCRIBE: 'Subscribe',
+  START_TRIAL: 'StartTrial',
+  SUBMIT_APPLICATION: 'SubmitApplication',
+  CONTACT: 'Contact',
+} as const satisfies Record<string, TrackingEvent>;
+
 export type TrackingEvent =
   | 'PageView'
   | 'ViewContent'
