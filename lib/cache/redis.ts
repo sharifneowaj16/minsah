@@ -176,6 +176,39 @@ export async function isRedisConnected(): Promise<boolean> {
   }
 }
 
+// ─── Rate Limiting ─────────────────────────────────────────────────────────
+
+export async function checkRateLimit(
+  key: string,
+  maxAttempts: number,
+  windowSeconds: number
+): Promise<{ allowed: boolean; remaining: number; resetIn: number }> {
+  if (!redis) {
+    console.warn('Redis not available for rate limiting:', key);
+    return { allowed: true, remaining: maxAttempts, resetIn: 0 };
+  }
+
+  try {
+    const count = await redis.incr(key);
+
+    // Set TTL only on the first request
+    if (count === 1) {
+      await redis.expire(key, windowSeconds);
+    }
+
+    const ttl = await redis.ttl(key);
+    const resetIn = ttl > 0 ? ttl : windowSeconds;
+    const remaining = Math.max(0, maxAttempts - count);
+    const allowed = count <= maxAttempts;
+
+    return { allowed, remaining, resetIn };
+  } catch (error) {
+    console.error('Redis rate limit error:', error);
+    // On error, allow the request to proceed
+    return { allowed: true, remaining: maxAttempts, resetIn: 0 };
+  }
+}
+
 // ✅ Graceful shutdown
 export async function closeRedis(): Promise<void> {
   if (redis) {
