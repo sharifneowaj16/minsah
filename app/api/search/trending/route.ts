@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         });
 
         trendingProducts = response.hits.hits.map((hit) => ({
-          ...hit._source,
+          ...(hit._source as Record<string, unknown>),
           _score: hit._score,
         }));
       } catch {
