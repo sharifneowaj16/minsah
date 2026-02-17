@@ -1,11 +1,9 @@
 /**
- * Product Sync Queue
+ * productQueue.ts
  *
  * Manages async DB → Elasticsearch sync via BullMQ.
- * Redis is the transport; the queue itself never touches ES directly.
- *
  * Job types:
- *   index  – create / update an ES document for one product
+ *   index  – create/update an ES document for one product
  *   delete – remove a product from the ES index
  *   reindex – full rebuild of the products index
  */
@@ -14,28 +12,29 @@ import { Queue } from 'bullmq';
 import type { ConnectionOptions } from 'bullmq';
 import { Redis } from 'ioredis';
 
-// ─── Redis connection for BullMQ ────────────────────────────────────────────
-// BullMQ needs its own IORedis instance (it calls .duplicate() internally).
+// ─── Redis connection ──────────────────────────────────────────────
 function createBullRedis(): Redis {
   const url = process.env.REDIS_URL;
   if (!url) {
-    console.warn('[productQueue] REDIS_URL not set – using redis://localhost:6379');
+    console.warn(
+      '[productQueue] REDIS_URL not set – using redis://localhost:6379'
+    );
     return new Redis({
       host: 'localhost',
       port: 6379,
-      maxRetriesPerRequest: null, // required by BullMQ
+      maxRetriesPerRequest: null, // Required by BullMQ
       lazyConnect: true,
     });
   }
   return new Redis(url, {
-    maxRetriesPerRequest: null, // required by BullMQ
+    maxRetriesPerRequest: null, // Required by BullMQ
     enableReadyCheck: false,
   });
 }
 
 export const bullRedis: Redis = createBullRedis();
 
-// ─── Job payload types ───────────────────────────────────────────────────────
+// ─── Job payload types ─────────────────────────────────────────────
 export interface IndexJobData {
   type: 'index';
   productId: string;
@@ -48,31 +47,25 @@ export interface DeleteJobData {
 
 export interface ReindexJobData {
   type: 'reindex';
-  requestedAt: string; // ISO timestamp so jobs are distinguishable in the UI
+  requestedAt: string; // ISO timestamp to distinguish jobs
 }
 
 export type ProductJobData = IndexJobData | DeleteJobData | ReindexJobData;
 
-// ─── Queue instance (singleton) ──────────────────────────────────────────────
+// ─── Queue singleton ───────────────────────────────────────────────
 const globalForQueue = globalThis as unknown as {
-  productQueue: Queue<ProductJobData> | undefined;
+  productQueue?: Queue<ProductJobData>;
 };
 
 function createQueue(): Queue<ProductJobData> {
-  // BullMQ v5 uses ExtractDataType<DataTypeOrJob, DataTypeOrJob> internally,
-  // which is a deferred conditional type. TypeScript won't resolve it for
-  // union DataType arguments, causing a false "no overload matches" error.
-  // Omitting the generic lets the constructor infer `any`; the cast restores
-  // the full typed surface for callers.
   return new Queue('product-sync', {
-    // bullRedis is ioredis@project; BullMQ bundles its own ioredis copy.
-    // Both are structurally identical at runtime; cast bridges the type gap.
+    // BullMQ expects ConnectionOptions; cast ioredis instance to satisfy TS
     connection: bullRedis as unknown as ConnectionOptions,
     defaultJobOptions: {
       attempts: 5,
       backoff: {
         type: 'exponential',
-        delay: 1000, // 1s → 2s → 4s → 8s → 16s
+        delay: 1000, // 1s → 2s → 4s → 8s …
       },
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 200 },
@@ -83,7 +76,12 @@ function createQueue(): Queue<ProductJobData> {
 export const productQueue: Queue<ProductJobData> =
   globalForQueue.productQueue ?? createQueue();
 
-// Keep singleton in development so hot-reload doesn't create duplicates
+// Keep singleton in development to prevent duplicate queues on hot reload
 if (process.env.NODE_ENV !== 'production') {
   globalForQueue.productQueue = productQueue;
+}
+
+// ─── Optional: helper for lazy initialization ─────────────────────
+export function getProductQueue(): Queue<ProductJobData> {
+  return globalForQueue.productQueue ?? createQueue();
 }
