@@ -16,6 +16,7 @@ const QUERY_CTR_PREFIX = 'search:ctr:';
 
 export async function trackFailedQuery(query: string): Promise<void> {
   if (!query.trim()) return;
+  if (!redis) return;
 
   try {
     await redis.zincrby(FAILED_QUERIES_KEY, 1, query.toLowerCase().trim());
@@ -30,6 +31,8 @@ export async function trackFailedQuery(query: string): Promise<void> {
 export async function getFailedQueries(
   limit: number = 50
 ): Promise<Array<{ query: string; count: number }>> {
+  if (!redis) return [];
+
   try {
     const results = await redis.zrevrange(
       FAILED_QUERIES_KEY,
@@ -57,6 +60,7 @@ export async function getFailedQueries(
 
 export async function trackQueryImpression(query: string): Promise<void> {
   if (!query.trim()) return;
+  if (!redis) return;
 
   try {
     const key = `${QUERY_CTR_PREFIX}${query.toLowerCase().trim()}`;
@@ -69,6 +73,7 @@ export async function trackQueryImpression(query: string): Promise<void> {
 
 export async function trackQueryClick(query: string): Promise<void> {
   if (!query.trim()) return;
+  if (!redis) return;
 
   try {
     const key = `${QUERY_CTR_PREFIX}${query.toLowerCase().trim()}`;
@@ -81,6 +86,8 @@ export async function trackQueryClick(query: string): Promise<void> {
 export async function getQueryCTR(
   query: string
 ): Promise<{ impressions: number; clicks: number; ctr: number }> {
+  if (!redis) return { impressions: 0, clicks: 0, ctr: 0 };
+
   try {
     const key = `${QUERY_CTR_PREFIX}${query.toLowerCase().trim()}`;
     const data = await redis.hgetall(key);
