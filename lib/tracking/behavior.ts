@@ -22,6 +22,7 @@ interface CustomerBehaviorData {
 type TrackingEventType =
   | 'Search'
   | 'ProductView'
+  | 'ViewContent'
   | 'CategoryView'
   | 'AddToCart'
   | 'RemoveFromCart'
@@ -76,28 +77,24 @@ export class BehaviorTracker {
           }
           break;
 
-        case 'ProductView':
-          if (data?.productId) {
+        case 'ViewContent':
+        case 'ProductView': {
+          const pid = data?.productId ?? data?.content_ids?.[0];
+          if (pid) {
             behavior.lastViewedProducts = [
-              data.productId,
-              ...behavior.lastViewedProducts.filter(
-                (p: string) => p !== data.productId
-              ),
+              pid,
+              ...behavior.lastViewedProducts.filter((p: string) => p !== pid),
             ].slice(0, 30);
           }
-          if (data?.category && !behavior.categoriesViewed.includes(data.category)) {
-            behavior.categoriesViewed = [
-              data.category,
-              ...behavior.categoriesViewed,
-            ].slice(0, 20);
+          const cat = data?.category ?? data?.content_category;
+          if (cat && !behavior.categoriesViewed.includes(cat)) {
+            behavior.categoriesViewed = [cat, ...behavior.categoriesViewed].slice(0, 20);
           }
           if (data?.brand && !behavior.brandsViewed.includes(data.brand)) {
-            behavior.brandsViewed = [
-              data.brand,
-              ...behavior.brandsViewed,
-            ].slice(0, 20);
+            behavior.brandsViewed = [data.brand, ...behavior.brandsViewed].slice(0, 20);
           }
           break;
+        }
 
         case 'CategoryView':
           if (data?.category && !behavior.categoriesViewed.includes(data.category)) {
