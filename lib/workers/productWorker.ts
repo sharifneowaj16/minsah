@@ -1,29 +1,29 @@
 /**
- * Product Sync Worker
+ * lib/workers/productWorker.ts
  *
- * Consumes jobs from the "product-sync" BullMQ queue and syncs
- * the Elasticsearch index to match the PostgreSQL database.
+ * Product Sync Worker — BullMQ 5.69.3
  *
- * Job types handled:
- *   index   – fetch product from DB, transform, upsert into ES
- *   delete  – remove product document from ES
- *   reindex – full rebuild (fetch all products in batches, bulk-index)
+ * Consumes jobs from the "product-sync" queue and syncs
+ * Elasticsearch index with the PostgreSQL database.
  *
- * Retry policy: 5 attempts with exponential back-off (configured on the Queue).
- *
- * Run this process separately from Next.js:
+ * Run separately from Next.js:
  *   npx tsx lib/workers/productWorker.ts
  */
 
-import { Worker, type Job, type ConnectionOptions } from 'bullmq';
-import { bullRedis, type ProductJobData, type IndexJobData, type DeleteJobData } from '@/lib/queue/productQueue';
+import { Worker, Job } from 'bullmq';
+import {
+  bullRedis,
+  type ProductJobData,
+  type IndexJobData,
+  type DeleteJobData,
+} from '@/lib/queue/productQueue';
 import { transformProductToES } from '@/lib/search/productTransformer';
 import { esClient, PRODUCT_INDEX } from '@/lib/elasticsearch';
 import prisma from '@/lib/prisma';
 
 const BATCH_SIZE = 500;
 
-// ─── Prisma include helper ─────────────────────────────────────────────────
+// ─── Prisma include ────────────────────────────────────────────────────
 
 const productInclude = {
   images: { orderBy: { sortOrder: 'asc' as const } },
@@ -32,7 +32,7 @@ const productInclude = {
   reviews: { select: { rating: true } },
 } as const;
 
-// ─── Job handlers ─────────────────────────────────────────────────────────────
+// ─── Job handlers ──────────────────────────────────────────────────────
 
 async function handleIndex(productId: string): Promise<void> {
   const product = await prisma.product.findUnique({
@@ -41,7 +41,7 @@ async function handleIndex(productId: string): Promise<void> {
   });
 
   if (!product) {
-    console.warn(`[worker] Product ${productId} not found in DB – skipping index`);
+    console.warn(`[worker] Product ${productId} not found in DB — skipping`);
     return;
   }
 
@@ -59,16 +59,15 @@ async function handleIndex(productId: string): Promise<void> {
 async function handleDelete(productId: string): Promise<void> {
   try {
     await esClient.delete({ index: PRODUCT_INDEX, id: productId });
-    console.log(`[worker] Deleted product ${productId} from ES index`);
+    console.log(`[worker] Deleted product ${productId} from ES`);
   } catch (err: unknown) {
-    // 404 just means it was never indexed – that is fine
     if (
       typeof err === 'object' &&
       err !== null &&
       'meta' in err &&
       (err as { meta: { statusCode: number } }).meta?.statusCode === 404
     ) {
-      console.warn(`[worker] Product ${productId} was not in ES index – nothing to delete`);
+      console.warn(`[worker] Product ${productId} not in ES — nothing to delete`);
       return;
     }
     throw err;
@@ -95,91 +94,93 @@ async function handleReindex(): Promise<void> {
       transformProductToES(p),
     ]);
 
-    const { errors, items } = await esClient.bulk({ operations, refresh: false });
+    const { errors, items } = await esClient.bulk({
+      operations,
+      refresh: false,
+    });
 
     if (errors) {
       const failed = items.filter((i) => i.index?.error);
-      console.error(`[worker] Bulk reindex had ${failed.length} errors:`, failed);
+      console.error(`[worker] Bulk errors: ${failed.length}`);
     }
 
     totalIndexed += products.length;
-    console.log(`[worker] Reindex progress: ${totalIndexed} products indexed`);
+    console.log(`[worker] Reindex progress: ${totalIndexed}`);
 
     skip += BATCH_SIZE;
     if (products.length < BATCH_SIZE) break;
   }
 
-  // Refresh once at the end to make all docs searchable
   await esClient.indices.refresh({ index: PRODUCT_INDEX });
-  console.log(`[worker] Full reindex complete – ${totalIndexed} products`);
+  console.log(`[worker] Full reindex complete — ${totalIndexed} products`);
 }
 
-// ─── Worker ───────────────────────────────────────────────────────────────────
+// ─── Worker ────────────────────────────────────────────────────────────
 
-export function startProductWorker(): Worker {
+export function startProductWorker(): Worker<ProductJobData> {
   const worker = new Worker<ProductJobData>(
     'product-sync',
     async (job: Job<ProductJobData>) => {
       const { name, data } = job;
 
       try {
-        if (name === 'index') {
-          const { productId } = data as IndexJobData;
-          await handleIndex(productId);
-
-        } else if (name === 'delete') {
-          const { productId } = data as DeleteJobData;
-          await handleDelete(productId);
-
-        } else if (name === 'reindex') {
-          await handleReindex();
-
-        } else {
-          console.warn(`[worker] Unknown job type "${name}" – skipping`);
+        switch (name) {
+          case 'index': {
+            const { productId } = data as IndexJobData;
+            await handleIndex(productId);
+            break;
+          }
+          case 'delete': {
+            const { productId } = data as DeleteJobData;
+            await handleDelete(productId);
+            break;
+          }
+          case 'reindex': {
+            await handleReindex();
+            break;
+          }
+          default:
+            console.warn(`[worker] Unknown job "${name}" — skipping`);
         }
       } catch (err) {
         console.error(`[worker] Job "${name}" (id=${job.id}) failed:`, err);
-        throw err; // let BullMQ retry according to the queue's back-off config
+        throw err;
       }
     },
     {
-      // bullRedis is ioredis@project; BullMQ bundles its own ioredis copy.
-      // Both are structurally identical at runtime; cast bridges the type gap.
-      connection: bullRedis as unknown as ConnectionOptions,
+      connection: bullRedis,
       concurrency: 3,
+      limiter: {
+        max: 50,
+        duration: 1_000,
+      },
     }
   );
 
   worker.on('completed', (job) => {
-    console.log(`[worker] Job ${job.id} (${job.name}) completed`);
+    console.log(`[worker] ✅ Job ${job.id} completed`);
   });
 
   worker.on('failed', (job, err) => {
-    console.error(`[worker] Job ${job?.id} (${job?.name}) failed (attempt ${job?.attemptsMade}):`, err?.message);
+    console.error(`[worker] ❌ Job ${job?.id} failed:`, err.message);
   });
 
   worker.on('error', (err) => {
     console.error('[worker] Worker error:', err);
   });
 
-  console.log('[worker] Product sync worker started – listening on queue "product-sync"');
+  console.log('[worker] 🚀 Product sync worker started (concurrency: 3)');
   return worker;
 }
 
-// ─── Standalone entry point ───────────────────────────────────────────────────
-// Run with:  npx tsx lib/workers/productWorker.ts
+// ─── Auto-start when run directly ──────────────────────────────────────
 
-if (process.argv[1]?.endsWith('productWorker.ts') || process.argv[1]?.endsWith('productWorker.js')) {
+const isDirectRun =
+  typeof process !== 'undefined' &&
+  process.argv[1] &&
+  (process.argv[1].includes('productWorker') ||
+    process.argv[1].includes('worker'));
+
+if (isDirectRun) {
   startProductWorker();
-
-  // Keep the process alive
-  process.on('SIGTERM', async () => {
-    console.log('[worker] SIGTERM received – shutting down gracefully');
-    process.exit(0);
-  });
-
-  process.on('SIGINT', async () => {
-    console.log('[worker] SIGINT received – shutting down gracefully');
-    process.exit(0);
-  });
 }

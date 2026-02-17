@@ -1,50 +1,68 @@
+/**
+ * lib/cache/redis.ts
+ *
+ * Redis client singleton + cache helpers.
+ * ioredis@^5.9.3
+ */
+
 import Redis from 'ioredis';
 
-// Redis singleton pattern
-const globalForRedis = globalThis as unknown as {
-  redis: Redis | undefined;
-};
+// ─── Singleton ─────────────────────────────────────────────────────────
 
-function createRedisClient(): Redis {
+const globalForRedis = globalThis as unknown as { redis?: Redis | null };
+
+function createRedisClient(): Redis | null {
+  // ✅ Build time এ Redis skip করুন
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    console.log('⚠️  Skipping Redis connection during build phase');
+    return null;
+  }
+
   const redisUrl = process.env.REDIS_URL;
 
   if (!redisUrl) {
-    console.warn('REDIS_URL not set. Using default localhost:6379');
-    return new Redis({
-      host: 'localhost',
-      port: 6379,
-      maxRetriesPerRequest: 3,
-      lazyConnect: true,
-    });
+    console.warn('⚠️  REDIS_URL not set. Redis features disabled.');
+    return null;
   }
 
-  return new Redis(redisUrl, {
-    maxRetriesPerRequest: 3,
-    retryStrategy: (times) => {
-      if (times > 3) {
-        console.error('Redis connection failed after 3 retries');
-        return null;
-      }
-      return Math.min(times * 200, 2000);
-    },
-    lazyConnect: true,
-  });
+  try {
+    return new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        if (times > 3) {
+          console.error('❌ Redis connection failed after 3 retries');
+          return null;
+        }
+        return Math.min(times * 200, 2_000);
+      },
+      lazyConnect: true,
+      // ✅ Connection timeout
+      connectTimeout: 10_000,
+      // ✅ Graceful error handling
+      enableOfflineQueue: false,
+    });
+  } catch (error) {
+    console.error('❌ Failed to create Redis client:', error);
+    return null;
+  }
 }
 
-export const redis = globalForRedis.redis ?? createRedisClient();
+export const redis: Redis | null = globalForRedis.redis ?? createRedisClient();
 
 if (process.env.NODE_ENV !== 'production') {
   globalForRedis.redis = redis;
 }
 
-// Cache helper functions
+// ─── Cache helpers (null-safe) ─────────────────────────────────────────
 
-const DEFAULT_TTL = 3600; // 1 hour in seconds
+const DEFAULT_TTL = 3600;
 
-/**
- * Get a value from cache
- */
 export async function cacheGet<T>(key: string): Promise<T | null> {
+  if (!redis) {
+    console.warn('Redis not available for GET:', key);
+    return null;
+  }
+
   try {
     const value = await redis.get(key);
     if (!value) return null;
@@ -55,14 +73,16 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
   }
 }
 
-/**
- * Set a value in cache with optional TTL
- */
 export async function cacheSet<T>(
   key: string,
   value: T,
   ttlSeconds: number = DEFAULT_TTL
 ): Promise<boolean> {
+  if (!redis) {
+    console.warn('Redis not available for SET:', key);
+    return false;
+  }
+
   try {
     await redis.setex(key, ttlSeconds, JSON.stringify(value));
     return true;
@@ -72,10 +92,12 @@ export async function cacheSet<T>(
   }
 }
 
-/**
- * Delete a value from cache
- */
 export async function cacheDelete(key: string): Promise<boolean> {
+  if (!redis) {
+    console.warn('Redis not available for DELETE:', key);
+    return false;
+  }
+
   try {
     await redis.del(key);
     return true;
@@ -85,10 +107,12 @@ export async function cacheDelete(key: string): Promise<boolean> {
   }
 }
 
-/**
- * Delete multiple keys matching a pattern
- */
 export async function cacheDeletePattern(pattern: string): Promise<number> {
+  if (!redis) {
+    console.warn('Redis not available for DELETE pattern:', pattern);
+    return 0;
+  }
+
   try {
     const keys = await redis.keys(pattern);
     if (keys.length === 0) return 0;
@@ -99,133 +123,67 @@ export async function cacheDeletePattern(pattern: string): Promise<number> {
   }
 }
 
-/**
- * Get or set a cached value (cache-aside pattern)
- */
 export async function cacheGetOrSet<T>(
   key: string,
   fetchFn: () => Promise<T>,
   ttlSeconds: number = DEFAULT_TTL
 ): Promise<T> {
-  // Try to get from cache
-  const cached = await cacheGet<T>(key);
-  if (cached !== null) {
-    return cached;
+  // ✅ Redis না থাকলে সরাসরি fetch করুন
+  if (!redis) {
+    console.warn('Redis not available, fetching directly:', key);
+    return await fetchFn();
   }
 
-  // Fetch and cache
+  const cached = await cacheGet<T>(key);
+  if (cached !== null) return cached;
+
   const value = await fetchFn();
   await cacheSet(key, value, ttlSeconds);
   return value;
 }
 
-/**
- * Increment a counter
- */
 export async function cacheIncrement(
   key: string,
   ttlSeconds?: number
 ): Promise<number> {
+  if (!redis) {
+    console.warn('Redis not available for INCREMENT:', key);
+    return 0;
+  }
+
   try {
-    const value = await redis.incr(key);
-    if (ttlSeconds && value === 1) {
+    const result = await redis.incr(key);
+    if (ttlSeconds && result === 1) {
       await redis.expire(key, ttlSeconds);
     }
-    return value;
+    return result;
   } catch (error) {
     console.error('Redis INCR error:', error);
     return 0;
   }
 }
 
-/**
- * Rate limiting helper
- */
-export async function checkRateLimit(
-  identifier: string,
-  maxRequests: number,
-  windowSeconds: number
-): Promise<{ allowed: boolean; remaining: number; resetIn: number }> {
-  const key = `ratelimit:${identifier}`;
-
+// ✅ Health check helper
+export async function isRedisConnected(): Promise<boolean> {
+  if (!redis) return false;
+  
   try {
-    const current = await redis.incr(key);
-
-    if (current === 1) {
-      await redis.expire(key, windowSeconds);
-    }
-
-    const ttl = await redis.ttl(key);
-
-    return {
-      allowed: current <= maxRequests,
-      remaining: Math.max(0, maxRequests - current),
-      resetIn: ttl > 0 ? ttl : windowSeconds,
-    };
+    await redis.ping();
+    return true;
   } catch (error) {
-    console.error('Rate limit check error:', error);
-    // Fail open - allow request if Redis is down
-    return {
-      allowed: true,
-      remaining: maxRequests,
-      resetIn: windowSeconds,
-    };
+    console.error('Redis ping failed:', error);
+    return false;
   }
 }
 
-/**
- * Session management helpers
- */
-export const sessionCache = {
-  async set(sessionId: string, data: Record<string, unknown>, ttlSeconds: number = 86400) {
-    return cacheSet(`session:${sessionId}`, data, ttlSeconds);
-  },
-
-  async get(sessionId: string): Promise<Record<string, unknown> | null> {
-    return cacheGet(`session:${sessionId}`);
-  },
-
-  async delete(sessionId: string) {
-    return cacheDelete(`session:${sessionId}`);
-  },
-
-  async refresh(sessionId: string, ttlSeconds: number = 86400): Promise<boolean> {
+// ✅ Graceful shutdown
+export async function closeRedis(): Promise<void> {
+  if (redis) {
     try {
-      await redis.expire(`session:${sessionId}`, ttlSeconds);
-      return true;
+      await redis.quit();
+      console.log('✅ Redis connection closed gracefully');
     } catch (error) {
-      console.error('Session refresh error:', error);
-      return false;
+      console.error('Error closing Redis:', error);
     }
-  },
-};
-
-/**
- * Invalidate cache for specific entities
- */
-export const invalidateCache = {
-  async user(userId: string) {
-    await cacheDeletePattern(`user:${userId}:*`);
-  },
-
-  async product(productId: string) {
-    await cacheDeletePattern(`product:${productId}:*`);
-    await cacheDelete('products:list');
-    await cacheDelete('products:featured');
-  },
-
-  async category(categoryId: string) {
-    await cacheDeletePattern(`category:${categoryId}:*`);
-    await cacheDelete('categories:list');
-  },
-
-  async order(orderId: string) {
-    await cacheDeletePattern(`order:${orderId}:*`);
-  },
-
-  async cart(userId: string) {
-    await cacheDelete(`cart:${userId}`);
-  },
-};
-
-export default redis;
+  }
+}

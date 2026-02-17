@@ -1,127 +1,130 @@
 /**
- * Search Metrics Collector
- * Tracks search performance and statistics
+ * lib/elasticsearch/metrics.ts
+ *
+ * In-memory search metrics collector for monitoring search performance.
+ * Tracks query duration, success rate, popular queries, slow queries.
  */
 
-export interface SearchMetric {
+interface SearchMetric {
   query: string;
   duration: number;
   resultCount: number;
   filters: string[];
   timestamp: Date;
   success: boolean;
-  error?: string;
 }
 
-class SearchMetricsCollector {
-  private metrics: SearchMetric[] = [];
-  private readonly maxSize = 1000; // Keep last 1000 searches
-  private readonly slowQueryThreshold = 1000; // 1 second
+interface MetricsSummary {
+  totalSearches: number;
+  averageDuration: number;
+  successRate: number;
+  popularQueries: Array<{ query: string; count: number }>;
+  slowQueries: Array<{ query: string; duration: number; timestamp: Date }>;
+  averageResultCount: number;
+  filtersUsage: Record<string, number>;
+}
 
-  /**
-   * Add a search metric
-   */
+export class SearchMetricsCollector {
+  private metrics: SearchMetric[] = [];
+  private readonly maxMetrics: number;
+  private readonly slowThresholdMs: number;
+
+  constructor(maxMetrics = 10_000, slowThresholdMs = 2_000) {
+    this.maxMetrics = maxMetrics;
+    this.slowThresholdMs = slowThresholdMs;
+  }
+
   add(metric: SearchMetric): void {
     this.metrics.push(metric);
-    
-    // Keep only recent metrics
-    if (this.metrics.length > this.maxSize) {
-      this.metrics.shift();
+
+    // Evict oldest when buffer full
+    if (this.metrics.length > this.maxMetrics) {
+      this.metrics = this.metrics.slice(-this.maxMetrics);
     }
   }
 
-  /**
-   * Get average search duration
-   */
-  getAverageDuration(): number {
-    if (this.metrics.length === 0) return 0;
-    const sum = this.metrics.reduce((acc, m) => acc + m.duration, 0);
-    return Math.round(sum / this.metrics.length);
-  }
+  getSummary(sinceMinutes = 60): MetricsSummary {
+    const since = new Date(Date.now() - sinceMinutes * 60_000);
+    const recent = this.metrics.filter((m) => m.timestamp >= since);
 
-  /**
-   * Get slow queries (> threshold)
-   */
-  getSlowQueries(threshold: number = this.slowQueryThreshold): SearchMetric[] {
-    return this.metrics.filter(m => m.duration > threshold);
-  }
+    if (recent.length === 0) {
+      return {
+        totalSearches: 0,
+        averageDuration: 0,
+        successRate: 100,
+        popularQueries: [],
+        slowQueries: [],
+        averageResultCount: 0,
+        filtersUsage: {},
+      };
+    }
 
-  /**
-   * Get success rate
-   */
-  getSuccessRate(): number {
-    if (this.metrics.length === 0) return 0;
-    const successful = this.metrics.filter(m => m.success).length;
-    return Math.round((successful / this.metrics.length) * 100);
-  }
-
-  /**
-   * Get popular search queries
-   */
-  getPopularQueries(limit: number = 10): Array<{ query: string; count: number }> {
-    const queryMap = new Map<string, number>();
-    
-    this.metrics.forEach(m => {
-      const query = m.query.toLowerCase().trim();
-      if (query) {
-        queryMap.set(query, (queryMap.get(query) || 0) + 1);
+    // Popular queries
+    const queryCounts = new Map<string, number>();
+    for (const m of recent) {
+      if (m.query.trim()) {
+        const q = m.query.toLowerCase();
+        queryCounts.set(q, (queryCounts.get(q) || 0) + 1);
       }
-    });
+    }
+    const popularQueries = [...queryCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([query, count]) => ({ query, count }));
 
-    return Array.from(queryMap.entries())
-      .map(([query, count]) => ({ query, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limit);
-  }
+    // Slow queries
+    const slowQueries = recent
+      .filter((m) => m.duration >= this.slowThresholdMs)
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 10)
+      .map(({ query, duration, timestamp }) => ({ query, duration, timestamp }));
 
-  /**
-   * Get searches with no results
-   */
-  getNoResultQueries(): SearchMetric[] {
-    return this.metrics.filter(m => m.success && m.resultCount === 0);
-  }
+    // Filters usage
+    const filtersUsage: Record<string, number> = {};
+    for (const m of recent) {
+      for (const f of m.filters) {
+        filtersUsage[f] = (filtersUsage[f] || 0) + 1;
+      }
+    }
 
-  /**
-   * Get comprehensive stats
-   */
-  getStats() {
-    const slowQueries = this.getSlowQueries();
-    const noResults = this.getNoResultQueries();
+    const totalDuration = recent.reduce((s, m) => s + m.duration, 0);
+    const successCount = recent.filter((m) => m.success).length;
+    const totalResults = recent.reduce((s, m) => s + m.resultCount, 0);
 
     return {
-      totalSearches: this.metrics.length,
-      avgDuration: this.getAverageDuration(),
-      successRate: this.getSuccessRate(),
-      slowQueries: {
-        count: slowQueries.length,
-        percentage: this.metrics.length > 0 
-          ? Math.round((slowQueries.length / this.metrics.length) * 100)
-          : 0,
-      },
-      noResultQueries: {
-        count: noResults.length,
-        percentage: this.metrics.length > 0
-          ? Math.round((noResults.length / this.metrics.length) * 100)
-          : 0,
-      },
-      popularQueries: this.getPopularQueries(5),
+      totalSearches: recent.length,
+      averageDuration: Math.round(totalDuration / recent.length),
+      successRate: Math.round((successCount / recent.length) * 100 * 100) / 100,
+      popularQueries,
+      slowQueries,
+      averageResultCount: Math.round(totalResults / recent.length),
+      filtersUsage,
     };
   }
 
-  /**
-   * Clear all metrics (for testing)
-   */
+  /** Zero-result queries — potential synonym gaps or UX issues */
+  getZeroResultQueries(sinceMinutes = 1440): Array<{ query: string; count: number }> {
+    const since = new Date(Date.now() - sinceMinutes * 60_000);
+    const zeroes = this.metrics.filter(
+      (m) => m.timestamp >= since && m.resultCount === 0 && m.query.trim()
+    );
+
+    const counts = new Map<string, number>();
+    for (const m of zeroes) {
+      const q = m.query.toLowerCase();
+      counts.set(q, (counts.get(q) || 0) + 1);
+    }
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 50)
+      .map(([query, count]) => ({ query, count }));
+  }
+
   clear(): void {
     this.metrics = [];
   }
-
-  /**
-   * Get recent metrics
-   */
-  getRecent(count: number = 10): SearchMetric[] {
-    return this.metrics.slice(-count);
-  }
 }
 
-// Export singleton instance
+// Singleton
 export const searchMetrics = new SearchMetricsCollector();

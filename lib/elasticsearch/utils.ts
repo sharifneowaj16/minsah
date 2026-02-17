@@ -1,149 +1,117 @@
 /**
- * Elasticsearch Query Utilities
- * Provides sanitization, validation, and safety functions
+ * lib/elasticsearch/utils.ts
+ *
+ * Search input sanitization and validation utilities.
  */
 
 /**
- * Sanitize search query to prevent injection attacks
+ * Sanitize a raw search query to prevent injection and clean up input.
  */
-export function sanitizeQuery(query: string): string {
-  return query
+export function sanitizeQuery(raw: string): string {
+  if (!raw || typeof raw !== 'string') return '';
+
+  return raw
     .trim()
-    .replace(/[<>]/g, '') // Remove HTML tags
-    .replace(/['"]/g, '') // Remove quotes
-    .replace(/[{}[\]]/g, '') // Remove brackets
-    .slice(0, 200); // Max 200 characters
+    .slice(0, 200) // Max query length
+    .replace(/[<>{}[\]\\\/]/g, '') // Remove dangerous chars
+    .replace(/\s+/g, ' '); // Collapse whitespace
 }
 
 /**
- * Validate and normalize numeric parameters
+ * Validate and coerce a numeric URL param.
  */
 export function validateNumericParam(
   value: string | null,
-  defaultValue: number,
+  defaultVal: number,
   min: number,
   max: number
 ): number {
-  if (!value) return defaultValue;
-  const num = parseInt(value, 10);
-  if (isNaN(num) || num < min || num > max) return defaultValue;
-  return num;
+  if (!value) return defaultVal;
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed)) return defaultVal;
+  return Math.max(min, Math.min(max, parsed));
 }
 
 /**
- * Validate price range
+ * Validate a price range.
  */
 export function validatePriceRange(
   minPrice: string | null,
   maxPrice: string | null
-): { min?: number; max?: number; valid: boolean } {
-  const min = minPrice ? parseFloat(minPrice) : undefined;
-  const max = maxPrice ? parseFloat(maxPrice) : undefined;
-
-  // Validate ranges
-  if (min !== undefined && (isNaN(min) || min < 0 || min > 1000000)) {
-    return { valid: false };
-  }
-
-  if (max !== undefined && (isNaN(max) || max < 0 || max > 1000000)) {
-    return { valid: false };
-  }
-
-  if (min !== undefined && max !== undefined && min > max) {
-    return { valid: false };
-  }
-
-  return { min, max, valid: true };
-}
-
-/**
- * Validate rating parameter
- */
-export function validateRating(rating: string | null): number | undefined {
-  if (!rating) return undefined;
-  const num = parseFloat(rating);
-  if (isNaN(num) || num < 0 || num > 5) return undefined;
-  return num;
-}
-
-/**
- * Build safe Elasticsearch query
- */
-export function buildSafeQuery(rawQuery: string) {
-  const sanitized = sanitizeQuery(rawQuery);
-  
-  if (!sanitized) {
-    return { match_all: {} };
-  }
-
-  return {
-    multi_match: {
-      query: sanitized,
-      fields: [
-        'name^5',
-        'brand^3',
-        'category^2',
-        'description^1.5',
-        'tags^2',
-      ],
-      type: 'best_fields',
-      fuzziness: 'AUTO',
-      prefix_length: 2,
-    }
-  };
-}
-
-/**
- * Validate search parameters
- */
-export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-}
-
-export function validateSearchParams(searchParams: URLSearchParams): ValidationResult {
+): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // Validate page
+  if (minPrice !== null) {
+    const min = parseFloat(minPrice);
+    if (isNaN(min) || min < 0) errors.push('minPrice must be a non-negative number');
+  }
+
+  if (maxPrice !== null) {
+    const max = parseFloat(maxPrice);
+    if (isNaN(max) || max < 0) errors.push('maxPrice must be a non-negative number');
+  }
+
+  if (minPrice && maxPrice) {
+    const min = parseFloat(minPrice);
+    const max = parseFloat(maxPrice);
+    if (!isNaN(min) && !isNaN(max) && min > max) {
+      errors.push('minPrice cannot be greater than maxPrice');
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Validate all search params from a URLSearchParams object.
+ */
+export function validateSearchParams(
+  searchParams: URLSearchParams
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
   const page = searchParams.get('page');
-  if (page) {
-    const pageNum = parseInt(page, 10);
-    if (isNaN(pageNum) || pageNum < 1 || pageNum > 1000) {
-      errors.push('Invalid page number (must be between 1-1000)');
+  if (page !== null) {
+    const p = parseInt(page, 10);
+    if (isNaN(p) || p < 1 || p > 1000) {
+      errors.push('page must be between 1 and 1000');
     }
   }
 
-  // Validate limit
   const limit = searchParams.get('limit');
-  if (limit) {
-    const limitNum = parseInt(limit, 10);
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
-      errors.push('Invalid limit (must be between 1-100)');
+  if (limit !== null) {
+    const l = parseInt(limit, 10);
+    if (isNaN(l) || l < 1 || l > 100) {
+      errors.push('limit must be between 1 and 100');
     }
   }
 
-  // Validate query length
-  const query = searchParams.get('q');
-  if (query && query.length > 200) {
-    errors.push('Query too long (maximum 200 characters)');
-  }
+  const priceValidation = validatePriceRange(
+    searchParams.get('minPrice'),
+    searchParams.get('maxPrice')
+  );
+  errors.push(...priceValidation.errors);
 
-  // Validate price range
-  const minPrice = searchParams.get('minPrice');
-  const maxPrice = searchParams.get('maxPrice');
-  const priceValidation = validatePriceRange(minPrice, maxPrice);
-  if (!priceValidation.valid) {
-    errors.push('Invalid price range');
-  }
-
-  // Validate rating
   const rating = searchParams.get('rating');
-  if (rating && validateRating(rating) === undefined) {
-    errors.push('Invalid rating (must be between 0-5)');
+  if (rating !== null) {
+    const r = parseFloat(rating);
+    if (isNaN(r) || r < 0 || r > 5) {
+      errors.push('rating must be between 0 and 5');
+    }
   }
 
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
+  const validSorts = ['relevance', 'price_asc', 'price_desc', 'newest', 'rating', 'name_asc', 'name_desc', 'popularity'];
+  const sort = searchParams.get('sort');
+  if (sort !== null && !validSorts.includes(sort)) {
+    errors.push(`sort must be one of: ${validSorts.join(', ')}`);
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Build a safe ES query object from validated params.
+ */
+export function buildSafeQuery(rawQuery: string): string {
+  return sanitizeQuery(rawQuery);
 }
