@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     // ✅ TRENDING SEARCHES: Return popular queries when requested or no query
     if (trending || !query.trim()) {
       const trendingLimit = parseInt(request.nextUrl.searchParams.get('trendingLimit') || '8');
-      const popularQueries = searchMetrics.getPopularQueries(trendingLimit);
+      const popularQueries = searchMetrics.getSummary().popularQueries.slice(0, trendingLimit);
 
       // If we also have a query, mix trending with product completions
       if (query.trim()) {
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     const productSuggestions = await fetchProductSuggestions(query, limit);
 
     // ✅ Also include any trending queries that match
-    const popularQueries = searchMetrics.getPopularQueries(20);
+    const popularQueries = searchMetrics.getSummary().popularQueries;
     const matchingTrending = popularQueries
       .filter(q => q.query.toLowerCase().startsWith(query.toLowerCase()) && q.query !== query)
       .slice(0, 2)
