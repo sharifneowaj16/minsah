@@ -564,7 +564,6 @@ export async function GET(request: NextRequest) {
       filters: [],
       timestamp: new Date(),
       success: false,
-      error: errorMessage,
     });
 
     return NextResponse.json(
