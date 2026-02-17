@@ -54,10 +54,9 @@ export async function POST(request: NextRequest) {
       userId = payload?.userId ?? null;
     }
 
-    // ✅ Get behavior data for device/session IDs (null on server, handled below)
-    const behavior = BehaviorTracker.getBehavior();
-    const deviceId = behavior?.deviceId ?? null;
-    const sessionId = behavior?.sessionId ?? null;
+    // getBehavior() always returns null server-side; device/session IDs unavailable here
+    const deviceId: string | null = null;
+    const sessionId: string | null = null;
 
     // ✅ Track in behavior system (no-op server-side, runs on client)
     // 'ViewContent' is the closest standard event for clicking a search result
