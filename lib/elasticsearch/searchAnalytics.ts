@@ -127,9 +127,6 @@ export async function getTopSearchQueries(
         conversions: true,
         revenue: true,
       },
-      _avg: {
-        ctr: true,
-      },
       where: {
         updatedAt: { gte: since },
       },
@@ -143,7 +140,9 @@ export async function getTopSearchQueries(
       query: m.query,
       totalClicks: m._sum.clicks ?? 0,
       totalConversions: m._sum.conversions ?? 0,
-      avgCTR: Math.round((m._avg.ctr ?? 0) * 100) / 100,
+      avgCTR: (m._sum.clicks ?? 0) > 0
+        ? Math.round(((m._sum.conversions ?? 0) / (m._sum.clicks ?? 1)) * 100 * 100) / 100
+        : 0,
       totalRevenue: parseFloat((m._sum.revenue ?? 0).toString()),
     }));
   } catch (error) {
