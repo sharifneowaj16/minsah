@@ -315,7 +315,7 @@ export async function searchProducts(
 
   const hits = response.hits.hits;
   const products = hits.map((hit) => ({
-    ...hit._source,
+    ...(hit._source as Record<string, unknown>),
     _score: hit._score,
     _highlights: hit.highlight,
   }));
