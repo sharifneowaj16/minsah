@@ -60,10 +60,10 @@ export async function POST(request: NextRequest) {
 
     // ✅ Track in behavior system (no-op server-side, runs on client)
     // 'ViewContent' is the closest standard event for clicking a search result
-    BehaviorTracker.trackEvent('ViewContent', {
-      content_ids: [productId],
+    BehaviorTracker.trackEvent('ProductView', {
+      productId,
       content_name: productName,
-      content_category: category,
+      category,
       value: price,
     });
 
