@@ -43,6 +43,12 @@ async function checkDatabase(): Promise<ServiceHealth> {
 }
 
 async function checkRedis(): Promise<ServiceHealth> {
+  if (!redis) {
+    return {
+      status: 'unhealthy',
+      error: 'Redis client not initialized',
+    };
+  }
   const start = Date.now();
   try {
     await redis.ping();
