@@ -17,6 +17,7 @@ const TTL_HOURS = 24;
  * Record a search query for trending tracking.
  */
 export async function trackSearchQuery(query: string): Promise<void> {
+  if (!redis) return;
   if (!query.trim()) return;
 
   const normalized = query.toLowerCase().trim();
@@ -39,6 +40,7 @@ export async function trackSearchQuery(query: string): Promise<void> {
  * Record a product view/click for trending products.
  */
 export async function trackProductView(productId: string): Promise<void> {
+  if (!redis) return;
   try {
     await redis.zincrby(TRENDING_PRODUCTS_KEY, 1, productId);
   } catch (error) {
@@ -52,6 +54,7 @@ export async function trackProductView(productId: string): Promise<void> {
 export async function getTrendingQueries(
   limit: number = 10
 ): Promise<Array<{ query: string; score: number }>> {
+  if (!redis) return [];
   try {
     const results = await redis.zrevrange(
       TRENDING_QUERIES_KEY,
@@ -81,6 +84,7 @@ export async function getTrendingQueries(
 export async function getTrendingProductIds(
   limit: number = 20
 ): Promise<string[]> {
+  if (!redis) return [];
   try {
     return await redis.zrevrange(TRENDING_PRODUCTS_KEY, 0, limit - 1);
   } catch (error) {
@@ -93,6 +97,7 @@ export async function getTrendingProductIds(
  * Clean up old trending data (run periodically via cron or scheduler).
  */
 export async function cleanupTrending(): Promise<void> {
+  if (!redis) return;
   try {
     // Remove entries with score < 2 (noise)
     await redis.zremrangebyscore(TRENDING_QUERIES_KEY, '-inf', '1');
