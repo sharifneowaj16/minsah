@@ -26,9 +26,11 @@ function createRedisClient(): Redis | null {
   }
 
   try {
-    return new Redis(redisUrl, {
+    const client = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       retryStrategy: (times) => {
+        // Static generation workers may not have NEXT_PHASE but are still build context
+        if (process.env.NEXT_PHASE === 'phase-production-build') return null;
         if (times > 3) {
           console.error('❌ Redis connection failed after 3 retries');
           return null;
@@ -41,6 +43,16 @@ function createRedisClient(): Redis | null {
       // ✅ Graceful error handling
       enableOfflineQueue: false,
     });
+
+    // Required: ioredis emits 'error' events asynchronously on connection failure.
+    // Without a listener Node.js treats them as unhandled, surfacing in build output
+    // even when every caller already has try/catch around commands.
+    client.on('error', (err) => {
+      if (process.env.NEXT_PHASE === 'phase-production-build') return;
+      console.error('❌ Redis connection error:', err.message);
+    });
+
+    return client;
   } catch (error) {
     console.error('❌ Failed to create Redis client:', error);
     return null;
