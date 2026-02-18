@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -73,7 +73,7 @@ function HighlightedText({ html, fallback }: { html?: string; fallback: string }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function SearchPage() {
+function SearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -842,5 +842,16 @@ export default function SearchPage() {
         )}
       </div>
     </div>
+  );
+}
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-minsah-light flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-minsah-primary border-t-transparent" />
+      </div>
+    }>
+      <SearchPageContent />
+    </Suspense>
   );
 }
