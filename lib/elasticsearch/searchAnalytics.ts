@@ -127,9 +127,6 @@ export async function getTopSearchQueries(
         conversions: true,
         revenue: true,
       },
-      _avg: {
-        ctr: true,
-      },
       where: {
         updatedAt: { gte: since },
       },
@@ -139,13 +136,21 @@ export async function getTopSearchQueries(
       take: limit,
     });
 
-    return metrics.map((m) => ({
-      query: m.query,
-      totalClicks: m._sum.clicks ?? 0,
-      totalConversions: m._sum.conversions ?? 0,
-      avgCTR: Math.round((m._avg.ctr ?? 0) * 100) / 100,
-      totalRevenue: parseFloat((m._sum.revenue ?? 0).toString()),
-    }));
+    return metrics.map((m) => {
+      const totalClicks = m._sum.clicks ?? 0;
+      const totalConversions = m._sum.conversions ?? 0;
+      const avgCTR =
+        totalClicks > 0
+          ? Math.round((totalConversions / totalClicks) * 100 * 100) / 100
+          : 0;
+      return {
+        query: m.query,
+        totalClicks,
+        totalConversions,
+        avgCTR,
+        totalRevenue: parseFloat((m._sum.revenue ?? 0).toString()),
+      };
+    });
   } catch (error) {
     console.error('Failed to get top search queries:', error);
     return [];
