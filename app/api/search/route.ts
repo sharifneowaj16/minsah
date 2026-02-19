@@ -3,6 +3,12 @@ import { esClient, PRODUCT_INDEX } from '@/lib/elasticsearch';
 import { sanitizeQuery, validateNumericParam, validateSearchParams } from '@/lib/elasticsearch/utils';
 import { searchMetrics } from '@/lib/elasticsearch/metrics';
 import { BehaviorTracker } from '@/lib/tracking/behavior';
+// ✅ CTR + Discount boost (Amazon A9 + Daraz style)
+import {
+  getQueryCTRData,
+  buildCTRBoostFunctions,
+  buildDiscountBoostFunctions,
+} from '@/lib/elasticsearch/ctrBoost';
 
 // ✅ Type definitions for search
 interface ProductSource {
@@ -114,6 +120,12 @@ export async function GET(request: NextRequest) {
     const behavior = BehaviorTracker.getBehavior();
     const userCategories = behavior?.categoriesViewed || [];
 
+    // ✅ FETCH CTR DATA in parallel (Redis cache 5min → DB fallback)
+    // Only when sort=relevance — price/newest sort doesn't need CTR boost
+    const ctrDataPromise = (query.trim() && sort === 'relevance')
+      ? getQueryCTRData(query, 20)
+      : Promise.resolve([]);
+
     // ========================================
     // BUILD ELASTICSEARCH QUERY
     // ========================================
@@ -191,10 +203,26 @@ export async function GET(request: NextRequest) {
     // ========================================
     // ✅ PROMOTIONAL BOOSTING with function_score
     // ========================================
+
+    // ✅ Await CTR data (was fetching in parallel above)
+    const ctrData = await ctrDataPromise;
+    const ctrBoostFunctions = buildCTRBoostFunctions(ctrData, 3.0);
+    const discountBoostFunctions = buildDiscountBoostFunctions();
+
     const promotionalFunctions: any[] = [
+      // ── Admin / promotional signals ──
       { filter: { term: { isFeatured: true } }, weight: 2.0 },
       { filter: { term: { isFlashSale: true } }, weight: 1.8 },
       { filter: { term: { isNewArrival: true } }, weight: 1.3 },
+
+      // ✅ CTR-based re-ranking (Amazon A9 style)
+      // Dynamic per-query: products clicked most for this query rise up
+      ...ctrBoostFunctions,
+
+      // ✅ Discount boost (Daraz style)
+      // ≥40% off → 1.6x | ≥20% off → 1.3x | ≥10% off → 1.15x
+      ...discountBoostFunctions,
+
       {
         field_value_factor: {
           field: 'rating',
@@ -544,6 +572,7 @@ export async function GET(request: NextRequest) {
         filters: filtersUsed,
         personalized: userCategories.length > 0,
         preferredCategories: userCategories.slice(0, 3),
+        ctrBoostsApplied: ctrBoostFunctions.length,
       }
     }, {
       headers: {
