@@ -57,6 +57,10 @@ interface ProductFormData {
   skinType: string[];
   expiryDate: string;
   shelfLife: string;
+  productCondition: 'NEW' | 'USED' | 'REFURBISHED';
+  gtin: string;
+  averageRating: number;
+  reviewCount: number;
 
   // Images
   images: ProductImage[];
@@ -69,6 +73,13 @@ interface ProductFormData {
   metaDescription: string;
   urlSlug: string;
   tags: string;
+  bengaliProductName: string;
+  bengaliMetaDescription: string;
+  focusKeyword: string;
+  ogTitle: string;
+  ogImageFile: File | null;
+  ogImagePreview: string;
+  imageAltTexts: string[];
 
   // Shipping & Delivery
   shippingWeight: string;
@@ -182,6 +193,17 @@ export default function NewProductPage() {
     metaDescription: '',
     urlSlug: '',
     tags: '',
+    bengaliProductName: '',
+    bengaliMetaDescription: '',
+    focusKeyword: '',
+    ogTitle: '',
+    ogImageFile: null,
+    ogImagePreview: '',
+    imageAltTexts: [],
+    productCondition: 'NEW',
+    gtin: '',
+    averageRating: 0,
+    reviewCount: 0,
     shippingWeight: '',
     dimensions: {
       length: '',
@@ -250,6 +272,7 @@ export default function NewProductPage() {
       setFormData(prev => ({
         ...prev,
         images: [...prev.images, ...newImages],
+        imageAltTexts: [...prev.imageAltTexts, ...Array(newImages.length).fill('')],
       }));
 
       // Clear error if exists
@@ -270,19 +293,22 @@ export default function NewProductPage() {
 
   const handleRemoveImage = (imageId: string) => {
     setFormData(prev => {
-      const imageToRemove = prev.images.find(img => img.id === imageId);
+      const imageIndex = prev.images.findIndex(img => img.id === imageId);
+      const imageToRemove = prev.images[imageIndex];
+
       if (imageToRemove) {
         URL.revokeObjectURL(imageToRemove.preview);
       }
 
       const updatedImages = prev.images.filter(img => img.id !== imageId);
+      const updatedAltTexts = prev.imageAltTexts.filter((_, idx) => idx !== imageIndex);
 
       // If removed image was main, set first image as main
       if (updatedImages.length > 0 && !updatedImages.some(img => img.isMain)) {
         updatedImages[0].isMain = true;
       }
 
-      return { ...prev, images: updatedImages };
+      return { ...prev, images: updatedImages, imageAltTexts: updatedAltTexts };
     });
   };
 
@@ -294,6 +320,38 @@ export default function NewProductPage() {
         isMain: img.id === imageId,
       })),
     }));
+  };
+
+  // Handle OG Image Upload
+  const handleOgImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('OG Image must be under 5MB');
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setFormData(prev => ({
+      ...prev,
+      ogImageFile: file,
+      ogImagePreview: preview,
+    }));
+  };
+
+  // Handle Image Alt Text Change
+  const handleImageAltTextChange = (index: number, value: string) => {
+    setFormData(prev => {
+      const newAltTexts = [...prev.imageAltTexts];
+      newAltTexts[index] = value;
+      return { ...prev, imageAltTexts: newAltTexts };
+    });
   };
 
   // Handle Variants
@@ -476,6 +534,28 @@ export default function NewProductPage() {
       if (mainIndex > 0) {
         const [mainUrl] = uploadedImageUrls.splice(mainIndex, 1);
         uploadedImageUrls.unshift(mainUrl);
+
+        // Also reorder alt texts
+        const [mainAlt] = formData.imageAltTexts.splice(mainIndex, 1);
+        formData.imageAltTexts.unshift(mainAlt);
+      }
+
+      // Step 1.5: Upload OG Image if exists
+      let uploadedOgImageUrl: string | undefined;
+      if (formData.ogImageFile) {
+        const ogForm = new FormData();
+        ogForm.append('file', formData.ogImageFile);
+        ogForm.append('folder', 'products/og-images');
+
+        const ogRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: ogForm,
+        });
+
+        if (ogRes.ok) {
+          const ogData = await ogRes.json();
+          uploadedOgImageUrl = ogData.url;
+        }
       }
 
       // Step 2: Build original price
@@ -504,12 +584,28 @@ export default function NewProductPage() {
         skinType: formData.skinType.length > 0 ? formData.skinType : undefined,
         expiryDate: formData.expiryDate || undefined,
         shelfLife: formData.shelfLife || undefined,
-        images: uploadedImageUrls,
+        images: uploadedImageUrls.map((url, index) => ({
+          url,
+          alt: formData.imageAltTexts[index] || formData.name,
+          title: formData.imageAltTexts[index] || formData.name,
+        })),
         variants: formData.variants,
         metaTitle: formData.metaTitle || undefined,
         metaDescription: formData.metaDescription || undefined,
         urlSlug: formData.urlSlug || undefined,
         tags: formData.tags || undefined,
+        bengaliName: formData.bengaliProductName || undefined,
+        bengaliDescription: formData.bengaliMetaDescription || undefined,
+        focusKeyword: formData.focusKeyword || undefined,
+        ogTitle: formData.ogTitle || formData.metaTitle || undefined,
+        ogImageUrl: uploadedOgImageUrl || undefined,
+        canonicalUrl: formData.urlSlug
+          ? `https://minsahbeauty.cloud/products/${formData.urlSlug}`
+          : undefined,
+        condition: formData.productCondition || 'NEW',
+        gtin: formData.gtin || undefined,
+        averageRating: formData.averageRating || 0,
+        reviewCount: formData.reviewCount || 0,
         shippingWeight: formData.shippingWeight || undefined,
         dimensions: (formData.dimensions.length || formData.dimensions.width || formData.dimensions.height)
           ? formData.dimensions
@@ -894,6 +990,43 @@ export default function NewProductPage() {
                     </div>
                   ))}
                 </div>
+
+              {/* Image Alt Texts Section */}
+              <div className="mt-6 space-y-4">
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    Image Alt Texts (for SEO)
+                  </h3>
+                  <p className="text-xs text-gray-600 mb-4">
+                    Add descriptive alt text for each image to improve search engine visibility
+                  </p>
+                  <div className="space-y-3">
+                    {formData.images.map((image, index) => (
+                      <div key={image.id} className="flex gap-3">
+                        <div className="flex-shrink-0">
+                          <img
+                            src={image.preview}
+                            alt={`Preview ${index + 1}`}
+                            className="w-16 h-16 object-cover rounded border border-gray-200"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Image {index + 1} - Alt Text {image.isMain && '(Main)'}
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.imageAltTexts[index] || ''}
+                            onChange={(e) => handleImageAltTextChange(index, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                            placeholder="Rhode Peptide Lip Tint Ribbon Shade Bangladesh"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
               </div>
             )}
           </div>
@@ -1107,6 +1240,80 @@ export default function NewProductPage() {
             </div>
 
             <div>
+              <label htmlFor="productCondition" className="block text-sm font-medium text-gray-700 mb-1">
+                Product Condition
+              </label>
+              <select
+                id="productCondition"
+                name="productCondition"
+                value={formData.productCondition}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="NEW">New</option>
+                <option value="USED">Used</option>
+                <option value="REFURBISHED">Refurbished</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Select product condition for structured data
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="gtin" className="block text-sm font-medium text-gray-700 mb-1">
+                GTIN/EAN/UPC Barcode (Optional)
+              </label>
+              <input
+                type="text"
+                id="gtin"
+                name="gtin"
+                value={formData.gtin}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="1234567890123"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Helps with Google Shopping and product verification
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="averageRating" className="block text-sm font-medium text-gray-700 mb-1">
+                  Average Rating (0-5)
+                </label>
+                <input
+                  type="number"
+                  id="averageRating"
+                  name="averageRating"
+                  value={formData.averageRating}
+                  onChange={handleChange}
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  For structured data (if product already has reviews)
+                </p>
+              </div>
+              <div>
+                <label htmlFor="reviewCount" className="block text-sm font-medium text-gray-700 mb-1">
+                  Review Count
+                </label>
+                <input
+                  type="number"
+                  id="reviewCount"
+                  name="reviewCount"
+                  value={formData.reviewCount}
+                  onChange={handleChange}
+                  min="0"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div>
               <label htmlFor="ingredients" className="block text-sm font-medium text-gray-700 mb-1">
                 Ingredients List
               </label>
@@ -1185,6 +1392,107 @@ export default function NewProductPage() {
                 </p>
               </div>
               {errors.metaDescription && <p className="mt-1 text-sm text-red-600">{errors.metaDescription}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="bengaliProductName" className="block text-sm font-medium text-gray-700 mb-1">
+                বাংলা Product Name
+              </label>
+              <input
+                type="text"
+                id="bengaliProductName"
+                name="bengaliProductName"
+                value={formData.bengaliProductName}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="রোড পেপটাইড লিপ টিন্ট"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Bengali version of product name for local SEO
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="bengaliMetaDescription" className="block text-sm font-medium text-gray-700 mb-1">
+                বাংলা Meta Description
+              </label>
+              <textarea
+                id="bengaliMetaDescription"
+                name="bengaliMetaDescription"
+                value={formData.bengaliMetaDescription}
+                onChange={handleChange}
+                maxLength={160}
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="রোড পেপটাইড লিপ টিন্ট কিনুন সেরা দামে..."
+              />
+              <div className="flex justify-between mt-1">
+                <p className="text-xs text-gray-500">০-১৬০ অক্ষর</p>
+                <p className="text-xs text-gray-500">
+                  {formData.bengaliMetaDescription.length}/160
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="focusKeyword" className="block text-sm font-medium text-gray-700 mb-1">
+                Focus Keyword (Main SEO Keyword)
+              </label>
+              <input
+                type="text"
+                id="focusKeyword"
+                name="focusKeyword"
+                value={formData.focusKeyword}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="rhode lip tint bangladesh"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Main keyword you want to rank for in search engines
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="ogTitle" className="block text-sm font-medium text-gray-700 mb-1">
+                Facebook/WhatsApp Title (Open Graph)
+              </label>
+              <input
+                type="text"
+                id="ogTitle"
+                name="ogTitle"
+                value={formData.ogTitle}
+                onChange={handleChange}
+                maxLength={60}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Auto-filled from Meta Title"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Leave blank to use Meta Title
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Social Sharing Image (1200x630px recommended)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleOgImageUpload}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+              />
+              {formData.ogImagePreview && (
+                <div className="mt-3">
+                  <img
+                    src={formData.ogImagePreview}
+                    alt="OG Preview"
+                    className="w-full max-w-md rounded-lg border border-gray-200"
+                  />
+                </div>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                This image appears when sharing on Facebook, WhatsApp, etc.
+              </p>
             </div>
 
             <div>
