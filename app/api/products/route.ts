@@ -266,7 +266,11 @@ export async function POST(request: NextRequest) {
     const isFeatured = body.featured === true || body.featured === 'true';
     const compareAtPrice = body.originalPrice ? parseFloat(body.originalPrice) : null;
 
-    const imagesList: string[] = Array.isArray(body.images) ? body.images : [];
+    const imagesList: Array<{
+      url: string;
+      alt?: string;
+      title?: string;
+    }> = Array.isArray(body.images) ? body.images : [];
     const variantsList: Array<{
       sku?: string;
       size?: string;
@@ -294,14 +298,25 @@ export async function POST(request: NextRequest) {
         metaTitle: body.metaTitle?.trim() || null,
         metaDescription: body.metaDescription?.trim() || null,
         metaKeywords: body.tags?.trim() || null,
+        bengaliName: body.bengaliName?.trim() || null,
+        bengaliDescription: body.bengaliDescription?.trim() || null,
+        focusKeyword: body.focusKeyword?.trim() || null,
+        ogTitle: body.ogTitle?.trim() || null,
+        ogImageUrl: body.ogImageUrl || null,
+        canonicalUrl: body.canonicalUrl || null,
+        condition: body.condition || 'NEW',
+        gtin: body.gtin?.trim() || null,
+        averageRating: body.averageRating ? parseFloat(body.averageRating) : null,
+        reviewCount: body.reviewCount ? parseInt(body.reviewCount) : 0,
         categoryId,
         brandId,
         images:
           imagesList.length > 0
             ? {
-                create: imagesList.map((url, index) => ({
-                  url,
-                  alt: body.name,
+                create: imagesList.map((img, index) => ({
+                  url: typeof img === 'string' ? img : img.url,
+                  alt: typeof img === 'object' ? img.alt : body.name,
+                  title: typeof img === 'object' ? img.title : body.name,
                   sortOrder: index,
                   isDefault: index === 0,
                 })),
