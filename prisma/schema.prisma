@@ -272,9 +272,21 @@ model Product {
   isNew           Boolean         @default(false)
 
   // SEO
-  metaTitle       String?
-  metaDescription String?
-  metaKeywords    String?
+  metaTitle           String?
+  metaDescription     String?
+  metaKeywords        String?
+  bengaliName         String?
+  bengaliDescription  String?         @db.Text
+  focusKeyword        String?
+  ogTitle             String?
+  ogImageUrl          String?
+  canonicalUrl        String?
+
+  // Structured Data
+  condition           String?         @default("NEW")
+  gtin                String?
+  averageRating       Decimal?        @db.Decimal(3, 2)
+  reviewCount         Int             @default(0)
 
   // Relations
   categoryId      String?
@@ -306,6 +318,7 @@ model ProductImage {
   productId String
   url       String
   alt       String?
+  title     String?
   sortOrder Int      @default(0)
   isDefault Boolean  @default(false)
 
