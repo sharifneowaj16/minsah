@@ -146,71 +146,96 @@ export default function EditProductPage() {
         if (!res.ok) throw new Error('Product not found');
         const data = await res.json();
         const p = data.product;
+        // DEBUG: remove after fixing
+        console.log('🔍 Product API response:', JSON.stringify(p, null, 2));
 
+        // ProductImage DB fields: id, url, alt, sortOrder, isDefault
         const existingImages: ProductImage[] = (p.images || []).map(
-          (img: { id: string; url: string; altText?: string }, i: number) => ({
+          (img: { id: string; url: string; alt?: string; altText?: string; isDefault?: boolean }, i: number) => ({
             id: img.id || String(i),
             preview: img.url,
-            isMain: i === 0,
+            isMain: img.isDefault || i === 0,
             existingUrl: img.url,
+            // carry alt for altTexts mapping below
+            _alt: img.alt || img.altText || '',
           })
         );
 
+        // Sort: isDefault first
+        existingImages.sort((a, b) => (a.isMain === b.isMain ? 0 : a.isMain ? -1 : 1));
+
+        // ProductVariant DB fields: id, sku, name, price (Decimal), quantity, attributes (Json)
         const existingVariants: ProductVariant[] =
           p.variants && p.variants.length > 0
-            ? p.variants.map((v: { id: string; attributes?: Record<string, string>; price: number; stock: number; sku?: string }) => ({
+            ? p.variants.map((v: {
+                id: string;
+                sku?: string;
+                name?: string;
+                price?: number | null;
+                quantity?: number;
+                stock?: number;
+                attributes?: Record<string, string> | null;
+              }) => ({
                 id: v.id,
-                size: v.attributes?.size || '',
-                color: v.attributes?.color || '',
-                price: String(v.price),
-                stock: String(v.stock),
-                sku: v.sku || '',
+                size: v.attributes?.size || v.attributes?.Size || '',
+                color: v.attributes?.color || v.attributes?.Color || '',
+                price: String(v.price ?? p.price ?? ''),
+                stock: String(v.quantity ?? v.stock ?? 0),
+                sku: v.sku || v.name || '',
               }))
-            : [{ id: '1', size: '', color: '', price: String(p.price || ''), stock: String(p.stock || 0), sku: '' }];
+            : [{ id: '1', size: '', color: '', price: String(p.price || ''), stock: String(p.stock ?? p.quantity ?? 0), sku: '' }];
 
         setFormData({
           ...defaultFormData,
           name: p.name || '',
-          category: p.category?.name || '',
-          brand: p.brand?.name || '',
+          // category & brand come as objects from the API join
+          category: p.category?.name || (typeof p.category === 'string' ? p.category : '') || '',
+          brand: p.brand?.name || (typeof p.brand === 'string' ? p.brand : '') || '',
           originCountry: p.originCountry || 'Bangladesh (Local)',
           status: p.isActive ? 'active' : 'inactive',
           featured: p.isFeatured || false,
           description: p.description || '',
+          // Specs — stored as metaKeywords-style JSON or plain fields
           weight: p.weight ? String(p.weight) : '',
-          ingredients: p.ingredients || '',
-          skinType: p.skinType || [],
-          expiryDate: p.expiryDate ? p.expiryDate.split('T')[0] : '',
+          ingredients: p.ingredients || p.metaKeywords || '',
+          skinType: Array.isArray(p.skinType) ? p.skinType : [],
+          expiryDate: p.expiryDate ? String(p.expiryDate).split('T')[0] : '',
           shelfLife: p.shelfLife || '',
-          productCondition: p.condition || 'NEW',
+          productCondition: p.condition || p.productCondition || 'NEW',
           gtin: p.gtin || '',
           averageRating: p.averageRating || 0,
-          reviewCount: p.reviewCount || 0,
+          reviewCount: p.reviewCount || p.reviews?.length || 0,
           images: existingImages,
-          imageAltTexts: existingImages.map(
-            (img: ProductImage & { altText?: string }) => (img as { altText?: string }).altText || ''
-          ),
+          // alt text from the _alt we set above
+          imageAltTexts: existingImages.map((img: ProductImage & { _alt?: string }) => img._alt || ''),
           variants: existingVariants,
+          // SEO
           metaTitle: p.metaTitle || '',
           metaDescription: p.metaDescription || '',
-          urlSlug: p.slug || '',
-          tags: p.tags || '',
-          bengaliProductName: p.bengaliName || '',
-          bengaliMetaDescription: p.bengaliMetaDescription || '',
+          urlSlug: p.slug || p.urlSlug || '',
+          tags: p.tags || p.metaKeywords || '',
+          bengaliProductName: p.bengaliName || p.bengaliProductName || '',
+          bengaliMetaDescription: p.bengaliMetaDescription || p.bengaliDescription || '',
           focusKeyword: p.focusKeyword || '',
           ogTitle: p.ogTitle || '',
-          ogImagePreview: p.ogImage || '',
+          ogImagePreview: p.ogImage || p.ogImageUrl || '',
+          // Shipping
           shippingWeight: p.shippingWeight || '',
-          dimensions: p.dimensions || { length: '', width: '', height: '' },
+          dimensions: p.dimensions && typeof p.dimensions === 'object'
+            ? { length: String(p.dimensions.length || ''), width: String(p.dimensions.width || ''), height: String(p.dimensions.height || '') }
+            : { length: '', width: '', height: '' },
           isFragile: p.isFragile || false,
           freeShippingEligible: p.freeShippingEligible !== false,
-          discountPercentage: p.discountPercentage ? String(p.discountPercentage) : '',
-          salePrice: p.salePrice ? String(p.salePrice) : '',
-          offerStartDate: p.offerStartDate ? p.offerStartDate.split('T')[0] : '',
-          offerEndDate: p.offerEndDate ? p.offerEndDate.split('T')[0] : '',
+          // Discount
+          discountPercentage: p.discountPercentage != null ? String(p.discountPercentage) : '',
+          salePrice: p.salePrice != null ? String(p.salePrice) : '',
+          offerStartDate: p.offerStartDate ? String(p.offerStartDate).replace('Z', '').slice(0, 16) : '',
+          offerEndDate: p.offerEndDate ? String(p.offerEndDate).replace('Z', '').slice(0, 16) : '',
           flashSaleEligible: p.flashSaleEligible || false,
-          lowStockThreshold: p.lowStockThreshold ? String(p.lowStockThreshold) : '10',
+          // Stock
+          lowStockThreshold: p.lowStockThreshold != null ? String(p.lowStockThreshold) : '10',
           barcode: p.barcode || '',
+          // Options
           returnEligible: p.returnEligible !== false,
           codAvailable: p.codAvailable !== false,
           preOrderOption: p.preOrderOption || false,
