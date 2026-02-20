@@ -142,29 +142,23 @@ export default function EditProductPage() {
     async function fetchProduct() {
       try {
         setIsLoading(true);
-        const res = await fetch(`/api/products/${productId}?activeOnly=false`);
+        const res = await fetch(`/api/admin/products/${productId}`);
         if (!res.ok) throw new Error('Product not found');
         const data = await res.json();
         const p = data.product;
-        // DEBUG: remove after fixing
-        console.log('🔍 Product API response:', JSON.stringify(p, null, 2));
 
-        // ProductImage DB fields: id, url, alt, sortOrder, isDefault
+        // Admin API returns images as full objects with {id, url, alt, isDefault}
         const existingImages: ProductImage[] = (p.images || []).map(
-          (img: { id: string; url: string; alt?: string; altText?: string; isDefault?: boolean }, i: number) => ({
-            id: img.id || String(i),
+          (img: { id: string; url: string; alt?: string; isDefault?: boolean }, i: number) => ({
+            id: img.id || 'existing-' + i,
             preview: img.url,
             isMain: img.isDefault || i === 0,
             existingUrl: img.url,
-            // carry alt for altTexts mapping below
-            _alt: img.alt || img.altText || '',
-          })
+            _alt: img.alt || '',
+          } as ProductImage & { _alt: string })
         );
 
-        // Sort: isDefault first
-        existingImages.sort((a, b) => (a.isMain === b.isMain ? 0 : a.isMain ? -1 : 1));
-
-        // ProductVariant DB fields: id, sku, name, price (Decimal), quantity, attributes (Json)
+        // Admin API returns variants with {id, sku, name, price, stock, quantity, attributes}
         const existingVariants: ProductVariant[] =
           p.variants && p.variants.length > 0
             ? p.variants.map((v: {
@@ -174,68 +168,67 @@ export default function EditProductPage() {
                 price?: number | null;
                 quantity?: number;
                 stock?: number;
-                attributes?: Record<string, string> | null;
+                attributes?: { size?: string; color?: string; [key: string]: string | undefined } | null;
               }) => ({
                 id: v.id,
-                size: v.attributes?.size || v.attributes?.Size || '',
-                color: v.attributes?.color || v.attributes?.Color || '',
+                size: v.attributes?.size || '',
+                color: v.attributes?.color || '',
                 price: String(v.price ?? p.price ?? ''),
-                stock: String(v.quantity ?? v.stock ?? 0),
-                sku: v.sku || v.name || '',
+                stock: String(v.stock ?? v.quantity ?? 0),
+                sku: v.sku || '',
               }))
-            : [{ id: '1', size: '', color: '', price: String(p.price || ''), stock: String(p.stock ?? p.quantity ?? 0), sku: '' }];
+            : [{ id: '1', size: '', color: '', price: String(p.price || ''), stock: String(p.stock ?? 0), sku: '' }];
 
         setFormData({
           ...defaultFormData,
+          // ── Basic ─────────────────────────────────────────────────────
           name: p.name || '',
-          // category & brand come as objects from the API join
-          category: p.category?.name || (typeof p.category === 'string' ? p.category : '') || '',
-          brand: p.brand?.name || (typeof p.brand === 'string' ? p.brand : '') || '',
+          category: p.category || '',
+          brand: p.brand || '',
           originCountry: p.originCountry || 'Bangladesh (Local)',
-          status: p.isActive ? 'active' : 'inactive',
-          featured: p.isFeatured || false,
+          status: p.status || (p.isActive ? 'active' : 'inactive'),
+          featured: p.featured || p.isFeatured || false,
           description: p.description || '',
-          // Specs — stored as metaKeywords-style JSON or plain fields
-          weight: p.weight ? String(p.weight) : '',
-          ingredients: p.ingredients || p.metaKeywords || '',
+          // ── Images ────────────────────────────────────────────────────
+          images: existingImages,
+          imageAltTexts: existingImages.map((img: ProductImage & { _alt?: string }) => img._alt || ''),
+          // ── Variants ──────────────────────────────────────────────────
+          variants: existingVariants,
+          // ── Specs ─────────────────────────────────────────────────────
+          weight: p.weight != null ? String(p.weight) : '',
+          ingredients: p.ingredients || '',
           skinType: Array.isArray(p.skinType) ? p.skinType : [],
           expiryDate: p.expiryDate ? String(p.expiryDate).split('T')[0] : '',
           shelfLife: p.shelfLife || '',
-          productCondition: p.condition || p.productCondition || 'NEW',
+          productCondition: p.condition || 'NEW',
           gtin: p.gtin || '',
           averageRating: p.averageRating || 0,
-          reviewCount: p.reviewCount || p.reviews?.length || 0,
-          images: existingImages,
-          // alt text from the _alt we set above
-          imageAltTexts: existingImages.map((img: ProductImage & { _alt?: string }) => img._alt || ''),
-          variants: existingVariants,
-          // SEO
+          reviewCount: p.reviewCount || 0,
+          // ── SEO ───────────────────────────────────────────────────────
           metaTitle: p.metaTitle || '',
           metaDescription: p.metaDescription || '',
-          urlSlug: p.slug || p.urlSlug || '',
-          tags: p.tags || p.metaKeywords || '',
-          bengaliProductName: p.bengaliName || p.bengaliProductName || '',
-          bengaliMetaDescription: p.bengaliMetaDescription || p.bengaliDescription || '',
+          urlSlug: p.slug || '',
+          tags: p.tags || '',
+          bengaliProductName: p.bengaliName || '',
+          bengaliMetaDescription: p.bengaliDescription || '',
           focusKeyword: p.focusKeyword || '',
           ogTitle: p.ogTitle || '',
-          ogImagePreview: p.ogImage || p.ogImageUrl || '',
-          // Shipping
+          ogImagePreview: p.ogImageUrl || '',
+          // ── Shipping ──────────────────────────────────────────────────
           shippingWeight: p.shippingWeight || '',
-          dimensions: p.dimensions && typeof p.dimensions === 'object'
-            ? { length: String(p.dimensions.length || ''), width: String(p.dimensions.width || ''), height: String(p.dimensions.height || '') }
-            : { length: '', width: '', height: '' },
+          dimensions: p.dimensions || { length: '', width: '', height: '' },
           isFragile: p.isFragile || false,
           freeShippingEligible: p.freeShippingEligible !== false,
-          // Discount
+          // ── Discount ──────────────────────────────────────────────────
           discountPercentage: p.discountPercentage != null ? String(p.discountPercentage) : '',
           salePrice: p.salePrice != null ? String(p.salePrice) : '',
-          offerStartDate: p.offerStartDate ? String(p.offerStartDate).replace('Z', '').slice(0, 16) : '',
-          offerEndDate: p.offerEndDate ? String(p.offerEndDate).replace('Z', '').slice(0, 16) : '',
+          offerStartDate: p.offerStartDate || '',
+          offerEndDate: p.offerEndDate || '',
           flashSaleEligible: p.flashSaleEligible || false,
-          // Stock
+          // ── Stock ─────────────────────────────────────────────────────
           lowStockThreshold: p.lowStockThreshold != null ? String(p.lowStockThreshold) : '10',
           barcode: p.barcode || '',
-          // Options
+          // ── Options ───────────────────────────────────────────────────
           returnEligible: p.returnEligible !== false,
           codAvailable: p.codAvailable !== false,
           preOrderOption: p.preOrderOption || false,
