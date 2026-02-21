@@ -278,6 +278,31 @@ model Product {
   ogTitle             String?
   ogImageUrl          String?
   canonicalUrl        String?
+// Beauty & Product Specs
+  subcategory         String?
+  skinType            String[]
+  ingredients         String?         @db.Text
+  shelfLife           String?
+  expiryDate          DateTime?
+  originCountry       String?         @default("Bangladesh (Local)")
+
+  // Shipping
+  shippingWeight      String?
+  isFragile           Boolean         @default(false)
+
+  // Discount & Offers
+  discountPercentage  Decimal?        @db.Decimal(5, 2)
+  salePrice           Decimal?        @db.Decimal(10, 2)
+  offerStartDate      DateTime?
+  offerEndDate        DateTime?
+  flashSaleEligible   Boolean         @default(false)
+
+  // Commerce Options
+  returnEligible      Boolean         @default(true)
+  codAvailable        Boolean         @default(true)
+  preOrderOption      Boolean         @default(false)
+  barcode             String?
+  relatedProducts     String?
 
   // Structured Data
   condition           String?         @default("NEW")
