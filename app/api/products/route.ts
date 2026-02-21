@@ -42,22 +42,12 @@ function formatProduct(product: {
   reviews: Array<{ rating: number }>;
 }) {
   const sortedImages = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder);
-  const mainImage =
-    sortedImages.find((img) => img.isDefault)?.url ||
-    sortedImages[0]?.url ||
-    '';
+  const mainImage = sortedImages.find((img) => img.isDefault)?.url || sortedImages[0]?.url || '';
   const imageUrls = sortedImages.map((img) => img.url);
-
-  const avgRating =
-    product.reviews.length > 0
-      ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
-      : 0;
-
-  const status = !product.isActive
-    ? 'inactive'
-    : product.quantity === 0
-    ? 'out_of_stock'
-    : 'active';
+  const avgRating = product.reviews.length > 0
+    ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
+    : 0;
+  const status = !product.isActive ? 'inactive' : product.quantity === 0 ? 'out_of_stock' : 'active';
 
   return {
     id: product.id,
@@ -100,7 +90,6 @@ function formatProduct(product: {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const category = searchParams.get('category');
@@ -111,16 +100,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const sort = searchParams.get('sort') || 'createdAt';
     const order = (searchParams.get('order') || 'desc') as 'asc' | 'desc';
-    // Admin panel can pass activeOnly=false to see all products
     const activeOnly = searchParams.get('activeOnly') !== 'false';
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = {};
-
-    if (activeOnly) {
-      where.isActive = true;
-    }
-
+    if (activeOnly) where.isActive = true;
     if (category) {
       where.category = {
         OR: [
@@ -129,23 +113,13 @@ export async function GET(request: NextRequest) {
         ],
       };
     }
-
-    if (brand) {
-      where.brand = {
-        name: { contains: brand, mode: 'insensitive' },
-      };
-    }
-
+    if (brand) where.brand = { name: { contains: brand, mode: 'insensitive' } };
     if (minPrice || maxPrice) {
       where.price = {};
       if (minPrice) where.price.gte = parseFloat(minPrice);
       if (maxPrice) where.price.lte = parseFloat(maxPrice);
     }
-
-    if (inStock === 'true') {
-      where.quantity = { gt: 0 };
-    }
-
+    if (inStock === 'true') where.quantity = { gt: 0 };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -180,16 +154,12 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const totalPages = Math.ceil(total / limit);
-
     return NextResponse.json({
       products: products.map(formatProduct),
       pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
+        page, limit, total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
         hasPrev: page > 1,
       },
     });
@@ -203,42 +173,23 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.name?.trim()) {
-      return NextResponse.json({ error: 'name is required' }, { status: 400 });
-    }
-    if (!body.brand?.trim()) {
-      return NextResponse.json({ error: 'brand is required' }, { status: 400 });
-    }
+    if (!body.name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
+    if (!body.brand?.trim()) return NextResponse.json({ error: 'brand is required' }, { status: 400 });
 
-    // Derive price from first variant or direct field
-    const basePrice =
-      body.variants?.[0]?.price
-        ? parseFloat(body.variants[0].price)
-        : body.price
-        ? parseFloat(body.price)
-        : 0;
+    const basePrice = body.variants?.[0]?.price
+      ? parseFloat(body.variants[0].price)
+      : body.price ? parseFloat(body.price) : 0;
 
-    if (basePrice <= 0) {
-      return NextResponse.json({ error: 'Valid price is required' }, { status: 400 });
-    }
+    if (basePrice <= 0) return NextResponse.json({ error: 'Valid price is required' }, { status: 400 });
 
-    // Calculate total stock from variants
-    const totalStock =
-      body.variants?.length > 0
-        ? (body.variants as Array<{ stock: string }>).reduce(
-            (sum, v) => sum + (parseInt(v.stock) || 0),
-            0
-          )
-        : parseInt(body.stock) || 0;
+    const totalStock = body.variants?.length > 0
+      ? (body.variants as Array<{ stock: string }>).reduce((sum, v) => sum + (parseInt(v.stock) || 0), 0)
+      : parseInt(body.stock) || 0;
 
-    // Generate unique slug – append timestamp if needed
     const baseSlug = body.urlSlug?.trim() || toSlug(body.name);
     const slug = `${baseSlug}-${Date.now()}`;
-
-    // Use first variant SKU or generate one
     const sku = body.variants?.[0]?.sku?.trim() || `SKU-${Date.now()}`;
 
-    // Find or create Category
     let categoryId: string | undefined;
     if (body.category?.trim()) {
       const categorySlug = toSlug(body.category);
@@ -250,7 +201,6 @@ export async function POST(request: NextRequest) {
       categoryId = category.id;
     }
 
-    // Find or create Brand
     let brandId: string | undefined;
     if (body.brand?.trim()) {
       const brandSlug = toSlug(body.brand);
@@ -262,22 +212,8 @@ export async function POST(request: NextRequest) {
       brandId = brand.id;
     }
 
-    const isActive = body.status !== 'inactive';
-    const isFeatured = body.featured === true || body.featured === 'true';
-    const compareAtPrice = body.originalPrice ? parseFloat(body.originalPrice) : null;
-
-    const imagesList: Array<{
-      url: string;
-      alt?: string;
-      title?: string;
-    }> = Array.isArray(body.images) ? body.images : [];
-    const variantsList: Array<{
-      sku?: string;
-      size?: string;
-      color?: string;
-      price?: string;
-      stock?: string;
-    }> = Array.isArray(body.variants) ? body.variants : [];
+    const imagesList: Array<{ url: string; alt?: string; title?: string }> = Array.isArray(body.images) ? body.images : [];
+    const variantsList: Array<{ sku?: string; size?: string; color?: string; price?: string; stock?: string }> = Array.isArray(body.variants) ? body.variants : [];
 
     const product = await prisma.product.create({
       data: {
@@ -285,60 +221,76 @@ export async function POST(request: NextRequest) {
         name: body.name.trim(),
         slug,
         description: body.description?.trim() || null,
-        shortDescription: body.description
-          ? body.description.substring(0, 150)
-          : null,
+        shortDescription: body.description ? body.description.substring(0, 150) : null,
         price: basePrice,
-        compareAtPrice,
+        compareAtPrice: body.originalPrice ? parseFloat(body.originalPrice) : null,
         quantity: totalStock,
         lowStockThreshold: body.lowStockThreshold ? parseInt(body.lowStockThreshold) : 5,
-        isActive,
-        isFeatured,
+        isActive: body.status !== 'inactive',
+        isFeatured: body.featured === true || body.featured === 'true',
         isNew: true,
+        // SEO
         metaTitle: body.metaTitle?.trim() || null,
         metaDescription: body.metaDescription?.trim() || null,
         metaKeywords: body.tags?.trim() || null,
-        bengaliName: body.bengaliName?.trim() || null,
-        bengaliDescription: body.bengaliDescription?.trim() || null,
+        bengaliName: body.bengaliProductName?.trim() || body.bengaliName?.trim() || null,
+        bengaliDescription: body.bengaliMetaDescription?.trim() || body.bengaliDescription?.trim() || null,
         focusKeyword: body.focusKeyword?.trim() || null,
         ogTitle: body.ogTitle?.trim() || null,
-        ogImageUrl: body.ogImageUrl || null,
+        ogImageUrl: body.ogImageUrl || body.ogImagePreview || null,
         canonicalUrl: body.canonicalUrl || null,
-        condition: body.condition || 'NEW',
+        // Structured Data
+        condition: body.productCondition || body.condition || 'NEW',
         gtin: body.gtin?.trim() || null,
         averageRating: body.averageRating ? parseFloat(body.averageRating) : null,
         reviewCount: body.reviewCount ? parseInt(body.reviewCount) : 0,
+        // Physical
+        weight: body.weight ? parseFloat(body.weight) : null,
+        length: body.dimensions?.length ? parseFloat(body.dimensions.length) : null,
+        width: body.dimensions?.width ? parseFloat(body.dimensions.width) : null,
+        height: body.dimensions?.height ? parseFloat(body.dimensions.height) : null,
+        // NEW fields
+        subcategory: body.subcategory?.trim() || null,
+        skinType: Array.isArray(body.skinType) ? body.skinType : [],
+        ingredients: body.ingredients?.trim() || null,
+        shelfLife: body.shelfLife?.trim() || null,
+        expiryDate: body.expiryDate ? new Date(body.expiryDate) : null,
+        originCountry: body.originCountry?.trim() || 'Bangladesh (Local)',
+        shippingWeight: body.shippingWeight?.trim() || null,
+        isFragile: body.isFragile === true || body.isFragile === 'true',
+        discountPercentage: body.discountPercentage ? parseFloat(body.discountPercentage) : null,
+        salePrice: body.salePrice ? parseFloat(body.salePrice) : null,
+        offerStartDate: body.offerStartDate ? new Date(body.offerStartDate) : null,
+        offerEndDate: body.offerEndDate ? new Date(body.offerEndDate) : null,
+        flashSaleEligible: body.flashSaleEligible === true || body.flashSaleEligible === 'true',
+        returnEligible: body.returnEligible !== false,
+        codAvailable: body.codAvailable !== false,
+        preOrderOption: body.preOrderOption === true || body.preOrderOption === 'true',
+        barcode: body.barcode?.trim() || null,
+        relatedProducts: body.relatedProducts?.trim() || null,
         categoryId,
         brandId,
-        images:
-          imagesList.length > 0
-            ? {
-                create: imagesList.map((img, index) => ({
-                  url: typeof img === 'string' ? img : img.url,
-                  alt: typeof img === 'object' ? img.alt : body.name,
-                  title: typeof img === 'object' ? img.title : body.name,
-                  sortOrder: index,
-                  isDefault: index === 0,
-                })),
-              }
-            : undefined,
-        variants:
-          variantsList.length > 0
-            ? {
-                create: variantsList.map((v, index) => ({
-                  sku: v.sku?.trim() || `${sku}-${index + 1}`,
-                  name:
-                    [v.size, v.color].filter(Boolean).join(' / ') ||
-                    `Variant ${index + 1}`,
-                  price: v.price ? parseFloat(v.price) : null,
-                  quantity: parseInt(v.stock || '0') || 0,
-                  attributes: {
-                    ...(v.size ? { size: v.size } : {}),
-                    ...(v.color ? { color: v.color } : {}),
-                  },
-                })),
-              }
-            : undefined,
+        images: imagesList.length > 0 ? {
+          create: imagesList.map((img, index) => ({
+            url: typeof img === 'string' ? img : img.url,
+            alt: typeof img === 'object' ? img.alt : body.name,
+            title: typeof img === 'object' ? img.title : body.name,
+            sortOrder: index,
+            isDefault: index === 0,
+          })),
+        } : undefined,
+        variants: variantsList.length > 0 ? {
+          create: variantsList.map((v, index) => ({
+            sku: v.sku?.trim() || `${sku}-${index + 1}`,
+            name: [v.size, v.color].filter(Boolean).join(' / ') || `Variant ${index + 1}`,
+            price: v.price ? parseFloat(v.price) : null,
+            quantity: parseInt(v.stock || '0') || 0,
+            attributes: {
+              ...(v.size ? { size: v.size } : {}),
+              ...(v.color ? { color: v.color } : {}),
+            },
+          })),
+        } : undefined,
       },
       include: {
         images: { orderBy: { sortOrder: 'asc' } },
@@ -349,7 +301,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Queue ES sync – fire-and-forget so ES downtime never blocks the API
     productQueue.add('index', { type: 'index', productId: product.id }).catch((err) => {
       console.error('[productQueue] Failed to enqueue index job for', product.id, err);
     });
@@ -357,16 +308,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(formatProduct(product), { status: 201 });
   } catch (error: unknown) {
     console.error('Error creating product:', error);
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      (error as { code: string }).code === 'P2002'
-    ) {
-      return NextResponse.json(
-        { error: 'A product with this slug or SKU already exists' },
-        { status: 409 }
-      );
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2002') {
+      return NextResponse.json({ error: 'A product with this slug or SKU already exists' }, { status: 409 });
     }
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
   }
