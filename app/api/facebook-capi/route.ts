@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
     // Build custom data
     const customData = {
       value: formatCurrency(payload.value),
-      currency: payload.currency || 'USD',
+      currency: payload.currency || 'BDT',
       content_ids: payload.contentIds,
       content_type: payload.contentType,
       content_name: payload.contentName,
