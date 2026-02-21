@@ -96,7 +96,7 @@ export default function CheckoutClient({
       // This sends event to Facebook with eventID
       trackPurchase({
         value: total,
-        currency: 'USD',
+        currency: 'BDT',
         contentIds: ['sample-product-1', 'sample-product-2'], // Replace with actual cart product IDs
         numItems: 3, // Replace with actual cart item count
         eventId: eventId, // CRITICAL: Same eventID used for server-side
@@ -122,7 +122,7 @@ export default function CheckoutClient({
         zipCode: formData.zipCode,
         country: formData.country,
         value: total,
-        currency: 'USD',
+        currency: 'BDT',
         contentIds: ['sample-product-1', 'sample-product-2'], // Replace with actual cart
         numItems: 3, // Replace with actual cart item count
         orderId: orderId,
