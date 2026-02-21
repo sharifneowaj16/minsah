@@ -14,7 +14,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
+import { formatPrice } from '@/utils/currency';
 
 interface ApiProduct {
   id: string;
@@ -397,11 +397,11 @@ export default function ProductsPage() {
                     <td className="px-6 py-4">
                       <div className="text-sm">
                         <span className="font-medium text-gray-900">
-                          {formatPrice(convertUSDtoBDT(product.price))}
+                          {formatPrice(product.price)}
                         </span>
                         {product.originalPrice != null && product.originalPrice > product.price && (
                           <span className="ml-2 text-xs text-gray-500 line-through">
-                            {formatPrice(convertUSDtoBDT(product.originalPrice))}
+                            {formatPrice(product.originalPrice)}
                           </span>
                         )}
                       </div>
