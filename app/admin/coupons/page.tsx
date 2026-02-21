@@ -16,7 +16,7 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
+import { formatPrice } from '@/utils/currency';
 
 interface Coupon {
   id: string;
@@ -255,7 +255,7 @@ export default function CouponsPage() {
                   ) : (
                     <>
                       <DollarSign className="w-4 h-4 mr-1" />
-                      {formatPrice(convertUSDtoBDT(coupon.value))} off
+                      {formatPrice(coupon.value)} off
                     </>
                   )}
                 </span>
@@ -265,7 +265,7 @@ export default function CouponsPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Min Purchase:</span>
                   <span className="font-medium text-gray-900">
-                    {formatPrice(convertUSDtoBDT(coupon.minPurchase))}
+                    {formatPrice(coupon.minPurchase)}
                   </span>
                 </div>
               )}
