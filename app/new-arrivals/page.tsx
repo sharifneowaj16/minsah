@@ -4,7 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Search, ShoppingCart, Heart, Home, User, ChevronLeft, Plus, Minus } from 'lucide-react';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
+import { formatPrice } from '@/utils/currency';
 
 const categories = ['All', 'Makeup', 'Skincare', 'Hair Care', 'Fragrance'];
 
@@ -125,7 +125,7 @@ export default function NewArrivalsPage() {
                 {/* Price and Quantity */}
                 <div className="flex items-center justify-between">
                   <span className="text-base font-bold text-minsah-primary">
-                    {formatPrice(convertUSDtoBDT(product.price))}
+                    {formatPrice(product.price)}
                   </span>
 
                   {/* Quantity Controls */}
