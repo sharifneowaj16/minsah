@@ -13,7 +13,7 @@ import {
   Download,
   ChevronRight,
 } from 'lucide-react';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
+import { formatPrice } from '@/utils/currency';
 import { bangladeshLocations, getAllDivisions, getDistrictsByDivision } from '@/data/bangladesh-locations';
 
 export default function SalesByRegionPage() {
@@ -201,7 +201,7 @@ export default function SalesByRegionPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
-                {formatPrice(convertUSDtoBDT(totalRevenue))}
+                {formatPrice(totalRevenue)}
               </p>
               <p className="text-xs text-green-600 mt-1">+22.3% vs last period</p>
             </div>
@@ -225,7 +225,7 @@ export default function SalesByRegionPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">
-                {formatPrice(convertUSDtoBDT(avgOrderValue))}
+                {formatPrice(avgOrderValue)}
               </p>
               <p className="text-xs text-green-600 mt-1">+5.2% vs last period</p>
             </div>
@@ -336,7 +336,7 @@ export default function SalesByRegionPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm font-medium text-gray-900">
-                      {formatPrice(convertUSDtoBDT(location.totalRevenue))}
+                      {formatPrice(location.totalRevenue)}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -347,7 +347,7 @@ export default function SalesByRegionPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm text-gray-900">
-                      {formatPrice(convertUSDtoBDT(location.avgOrderValue))}
+                      {formatPrice(location.avgOrderValue)}
                     </span>
                   </td>
                   <td className="px-6 py-4">
