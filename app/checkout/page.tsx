@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, CreditCard, FileText, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
+import { formatPrice } from '@/utils/currency';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -22,11 +22,6 @@ export default function CheckoutPage() {
 
   const [expandedSection, setExpandedSection] = useState<'address' | 'payment' | 'summary' | null>('address');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-
-  const bdtSubtotal = convertUSDtoBDT(subtotal);
-  const bdtShipping = convertUSDtoBDT(shippingCost);
-  const bdtTax = convertUSDtoBDT(tax);
-  const bdtTotal = convertUSDtoBDT(total);
 
   const handlePlaceOrder = async () => {
     if (!selectedAddress) {
@@ -236,7 +231,7 @@ export default function CheckoutPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-minsah-primary">{formatPrice(bdtTotal)}</span>
+              <span className="font-bold text-minsah-primary">{formatPrice(total)}</span>
               {expandedSection === 'summary' ? (
                 <ChevronUp className="text-minsah-secondary" size={20} />
               ) : (
@@ -263,7 +258,7 @@ export default function CheckoutPage() {
                         {item.name}
                       </h3>
                       <p className="text-xs text-minsah-secondary mb-2">
-                        {formatPrice(convertUSDtoBDT(item.price))}
+                        {formatPrice(item.price)}
                       </p>
                       <div className="flex items-center gap-2 text-xs">
                         <button
@@ -283,7 +278,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-minsah-primary">
-                        {formatPrice(convertUSDtoBDT(item.price * item.quantity))}
+                        {formatPrice(item.price * item.quantity)}
                       </p>
                     </div>
                   </div>
@@ -294,21 +289,21 @@ export default function CheckoutPage() {
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-minsah-secondary">Subtotal</span>
-                  <span className="font-semibold text-minsah-dark">{formatPrice(bdtSubtotal)}</span>
+                  <span className="font-semibold text-minsah-dark">{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-minsah-secondary">Shipping Cost</span>
                   <span className="font-semibold text-minsah-dark">
-                    {shippingCost === 0 ? 'FREE' : formatPrice(bdtShipping)}
+                    {shippingCost === 0 ? 'FREE' : formatPrice(shippingCost)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-minsah-secondary">Tax</span>
-                  <span className="font-semibold text-minsah-dark">{formatPrice(bdtTax)}</span>
+                  <span className="font-semibold text-minsah-dark">{formatPrice(tax)}</span>
                 </div>
                 <div className="border-t border-minsah-secondary/20 pt-2 flex justify-between">
                   <span className="font-bold text-minsah-dark">Total</span>
-                  <span className="font-bold text-minsah-primary text-lg">{formatPrice(bdtTotal)}</span>
+                  <span className="font-bold text-minsah-primary text-lg">{formatPrice(total)}</span>
                 </div>
               </div>
             </div>
