@@ -42,7 +42,6 @@ export default function ProductCard({ id, name, price, originalPrice, image, cat
             {originalPrice && (
               <span className="text-sm text-gray-400 line-through">{formatPrice(originalPrice)}</span>
             )}
-            )}
           </div>
         </div>
       </div>
