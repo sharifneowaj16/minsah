@@ -14,7 +14,7 @@ import {
   Minus,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
+import { formatPrice } from '@/utils/currency';
 
 interface AnalyticsData {
   revenue: {
@@ -193,7 +193,7 @@ export default function AnalyticsPage() {
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className="text-2xl font-bold text-gray-900 mt-2">
-            {format === 'currency' && typeof value === 'number' ? formatPrice(convertUSDtoBDT(value)) : typeof value === 'number' ? value.toLocaleString() : value}
+            {format === 'currency' && typeof value === 'number' ? formatPrice(value) : typeof value === 'number' ? value.toLocaleString() : value}
             {format === 'percentage' && '%'}
           </p>
           <div className="flex items-center mt-2">
@@ -327,7 +327,7 @@ export default function AnalyticsPage() {
           <div className="mt-4 flex justify-between text-sm text-gray-600">
             <span>Period Total</span>
             <span className="font-semibold text-gray-900">
-              {formatPrice(convertUSDtoBDT(analyticsData.revenue.current))}
+              {formatPrice(analyticsData.revenue.current)}
             </span>
           </div>
         </div>
@@ -361,7 +361,7 @@ export default function AnalyticsPage() {
                   <div className="flex items-center space-x-2 mt-1">
                     <span className="text-xs text-gray-500">{product.sales} sold</span>
                     <Minus className="w-3 h-3 text-gray-400 rotate-90" />
-                    <span className="text-xs text-gray-900">{formatPrice(convertUSDtoBDT(product.revenue))}</span>
+                    <span className="text-xs text-gray-900">{formatPrice(product.revenue)}</span>
                   </div>
                 </div>
                 <div className={clsx(
@@ -383,7 +383,7 @@ export default function AnalyticsPage() {
               <div key={category.name}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-gray-900">{category.name}</span>
-                  <span className="text-sm text-gray-600">{formatPrice(convertUSDtoBDT(category.revenue))}</span>
+                  <span className="text-sm text-gray-600">{formatPrice(category.revenue)}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
@@ -418,13 +418,13 @@ export default function AnalyticsPage() {
               <div className="flex justify-between mb-2">
                 <span className="text-sm text-gray-600">Avg Order Value</span>
                 <span className="text-sm font-semibold text-gray-900">
-                  {formatPrice(convertUSDtoBDT(analyticsData.customerAnalytics.averageOrderValue))}
+                  {formatPrice(analyticsData.customerAnalytics.averageOrderValue)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Customer Lifetime Value</span>
                 <span className="text-sm font-semibold text-gray-900">
-                  {formatPrice(convertUSDtoBDT(analyticsData.customerAnalytics.customerLifetimeValue))}
+                  {formatPrice(analyticsData.customerAnalytics.customerLifetimeValue)}
                 </span>
               </div>
             </div>
@@ -442,7 +442,7 @@ export default function AnalyticsPage() {
                 <span className="text-sm font-medium text-gray-900">{region.region}</span>
                 <span className="text-xs text-gray-500">{region.percentage.toFixed(1)}%</span>
               </div>
-              <div className="text-lg font-bold text-gray-900">{formatPrice(convertUSDtoBDT(region.revenue))}</div>
+              <div className="text-lg font-bold text-gray-900">{formatPrice(region.revenue)}</div>
               <div className="text-xs text-gray-600">{region.sales} orders</div>
             </div>
           ))}
