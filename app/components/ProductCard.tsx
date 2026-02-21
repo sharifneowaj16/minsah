@@ -1,8 +1,7 @@
 ﻿import Link from 'next/link';
 import Image from 'next/image';
 import { Package } from 'lucide-react';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
-
+import { formatPrice } from '@/utils/currency';
 interface ProductCardProps {
   id: string;
   name: string;
@@ -13,11 +12,8 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ id, name, price, originalPrice, image, category }: ProductCardProps) {
-  // Convert prices from USD to BDT
-  const bdtPrice = convertUSDtoBDT(price);
-  const bdtOriginalPrice = originalPrice ? convertUSDtoBDT(originalPrice) : undefined;
+  // Price is already in BDT
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-
   return (
     <Link href={`/products/${id}`} className="group">
       <div className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow overflow-hidden">
@@ -42,9 +38,10 @@ export default function ProductCard({ id, name, price, originalPrice, image, cat
           )}
           <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{name}</h3>
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-pink-600">{formatPrice(bdtPrice)}</span>
-            {bdtOriginalPrice && (
-              <span className="text-sm text-gray-400 line-through">{formatPrice(bdtOriginalPrice)}</span>
+            <span className="text-lg font-bold text-pink-600">{formatPrice(price)}</span>
+            {originalPrice && (
+              <span className="text-sm text-gray-400 line-through">{formatPrice(originalPrice)}</span>
+            )}
             )}
           </div>
         </div>
