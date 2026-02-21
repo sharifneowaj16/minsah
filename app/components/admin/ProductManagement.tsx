@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { AdminProduct, AdminCategory } from '@/types/admin';
 import { generateMockProducts } from '@/types/admin';
+import { formatPrice } from '@/utils/currency';
 import {
   Search,
   Plus,
@@ -166,13 +167,6 @@ export default function ProductManagement() {
     if (quantity === 0) return { color: 'text-red-600 bg-red-100', text: 'Out of Stock' };
     if (quantity <= lowStockThreshold) return { color: 'text-yellow-600 bg-yellow-100', text: 'Low Stock' };
     return { color: 'text-green-600 bg-green-100', text: 'In Stock' };
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   if (loading) {
@@ -397,9 +391,9 @@ export default function ProductManagement() {
                 </div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-lg font-bold text-gray-900">{formatCurrency(product.price)}</p>
+                    <p className="text-lg font-bold text-gray-900">{formatPrice(product.price)}</p>
                     {product.comparePrice && (
-                      <p className="text-sm text-gray-500 line-through">{formatCurrency(product.comparePrice)}</p>
+                      <p className="text-sm text-gray-500 line-through">{formatPrice(product.comparePrice)}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
@@ -476,7 +470,7 @@ export default function ProductManagement() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <span className="text-gray-600">Price:</span>
-                      <span className="ml-1 font-medium">{formatCurrency(product.price)}</span>
+                      <span className="ml-1 font-medium">{formatPrice(product.price)}</span>
                     </div>
                     <div>
                       <span className="text-gray-600">Stock:</span>
@@ -616,7 +610,7 @@ export default function ProductManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price (BDT ৳)</label>
                 <input
                   type="number"
                   defaultValue={editingProduct?.price}
@@ -626,7 +620,7 @@ export default function ProductManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Compare Price</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Compare Price (BDT ৳)</label>
                 <input
                   type="number"
                   defaultValue={editingProduct?.comparePrice}
