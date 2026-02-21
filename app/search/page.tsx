@@ -9,7 +9,7 @@ import {
   Star, Package, ChevronDown, ChevronUp, Filter, Volume2, VolumeX,
   Home, ChevronRight, AlertCircle, Flame, Tag, Zap, CheckCircle
 } from 'lucide-react';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
+import { formatPrice } from '@/utils/currency';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -85,8 +85,8 @@ function HighlightedText({ html, fallback }: { html?: string; fallback: string }
 function ProductCard({ product, query }: { product: Product; query: string }) {
   const img = getProductImage(product);
   const discount = product.discount ?? calcDiscount(product.price, product.compareAtPrice);
-  const price = convertUSDtoBDT(product.price);
-  const comparePrice = product.compareAtPrice ? convertUSDtoBDT(product.compareAtPrice) : null;
+  const price = product.price;
+  const comparePrice = product.compareAtPrice ?? undefined;
 
   const handleClick = () => {
     // Track click for CTR boost
@@ -267,7 +267,7 @@ function SuggestionsDropdown({
               </p>
               {s.price && (
                 <p className="text-xs text-minsah-primary font-semibold mt-0.5">
-                  {formatPrice(convertUSDtoBDT(s.price))}
+                  {formatPrice(s.price)}
                 </p>
               )}
               {s.type === 'trending' && s.count && (
