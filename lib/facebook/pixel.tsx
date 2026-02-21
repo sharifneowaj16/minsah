@@ -139,7 +139,7 @@ export function trackViewContent(params: {
     content_type: params.contentType || 'product',
     content_name: params.contentName,
     value: params.value,
-    currency: params.currency || 'USD',
+    currency: params.currency || 'BDT',
   });
 }
 
@@ -158,7 +158,7 @@ export function trackAddToCart(params: {
     content_type: params.contentType || 'product',
     content_name: params.contentName,
     value: params.value,
-    currency: params.currency || 'USD',
+    currency: params.currency || 'BDT',
   });
 }
 
@@ -173,7 +173,7 @@ export function trackInitiateCheckout(params: {
 }): string {
   return trackEvent('InitiateCheckout', {
     value: params.value,
-    currency: params.currency || 'USD',
+    currency: params.currency || 'BDT',
     num_items: params.numItems,
     content_ids: params.contentIds,
   });
@@ -196,7 +196,7 @@ export function trackPurchase(params: {
     'Purchase',
     {
       value: params.value,
-      currency: params.currency || 'USD',
+      currency: params.currency || 'BDT',
       content_ids: params.contentIds,
       num_items: params.numItems,
     },
