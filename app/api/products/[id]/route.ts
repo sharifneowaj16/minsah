@@ -42,20 +42,12 @@ function formatProduct(product: {
   reviews: Array<{ rating: number }>;
 }) {
   const sortedImages = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder);
-  const mainImage =
-    sortedImages.find((img) => img.isDefault)?.url || sortedImages[0]?.url || '';
+  const mainImage = sortedImages.find((img) => img.isDefault)?.url || sortedImages[0]?.url || '';
   const imageUrls = sortedImages.map((img) => img.url);
-
-  const avgRating =
-    product.reviews.length > 0
-      ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
-      : 0;
-
-  const status = !product.isActive
-    ? 'inactive'
-    : product.quantity === 0
-    ? 'out_of_stock'
-    : 'active';
+  const avgRating = product.reviews.length > 0
+    ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
+    : 0;
+  const status = !product.isActive ? 'inactive' : product.quantity === 0 ? 'out_of_stock' : 'active';
 
   return {
     id: product.id,
@@ -111,12 +103,8 @@ export async function GET(
         variants: true,
         reviews: {
           select: {
-            id: true,
-            rating: true,
-            title: true,
-            comment: true,
-            isVerified: true,
-            createdAt: true,
+            id: true, rating: true, title: true, comment: true,
+            isVerified: true, createdAt: true,
             user: { select: { firstName: true, lastName: true } },
           },
           orderBy: { createdAt: 'desc' },
@@ -125,23 +113,14 @@ export async function GET(
       },
     });
 
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
+    if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
-    // Fetch related products (same category, excluding this one)
     const relatedProducts = product.categoryId
       ? await prisma.product.findMany({
-          where: {
-            categoryId: product.categoryId,
-            id: { not: product.id },
-            isActive: true,
-          },
+          where: { categoryId: product.categoryId, id: { not: product.id }, isActive: true },
           include: {
             images: { orderBy: { sortOrder: 'asc' }, take: 1 },
-            category: true,
-            brand: true,
-            variants: true,
+            category: true, brand: true, variants: true,
             reviews: { select: { rating: true } },
           },
           take: 4,
@@ -154,16 +133,12 @@ export async function GET(
       if (star >= 1 && star <= 5) ratingDistribution[star]++;
     });
 
-    const avgRating =
-      product.reviews.length > 0
-        ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
-        : 0;
+    const avgRating = product.reviews.length > 0
+      ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
+      : 0;
 
     return NextResponse.json({
-      product: formatProduct({
-        ...product,
-        reviews: product.reviews.map((r) => ({ rating: r.rating })),
-      }),
+      product: formatProduct({ ...product, reviews: product.reviews.map((r) => ({ rating: r.rating })) }),
       relatedProducts: relatedProducts.map((p) =>
         formatProduct({ ...p, reviews: p.reviews.map((r) => ({ rating: r.rating })) })
       ),
@@ -197,9 +172,7 @@ export async function PUT(
     const body = await request.json();
 
     const existing = await prisma.product.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
+    if (!existing) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
     let categoryId: string | undefined = existing.categoryId ?? undefined;
     if (body.category?.trim()) {
@@ -231,11 +204,45 @@ export async function PUT(
         price: body.price ? parseFloat(body.price) : existing.price,
         compareAtPrice: body.originalPrice ? parseFloat(body.originalPrice) : existing.compareAtPrice,
         quantity: body.stock !== undefined ? parseInt(body.stock) : existing.quantity,
+        lowStockThreshold: body.lowStockThreshold ? parseInt(body.lowStockThreshold) : existing.lowStockThreshold,
         isActive: body.status !== undefined ? body.status !== 'inactive' : existing.isActive,
         isFeatured: body.featured !== undefined ? body.featured === true || body.featured === 'true' : existing.isFeatured,
+        // SEO
         metaTitle: body.metaTitle ?? existing.metaTitle,
         metaDescription: body.metaDescription ?? existing.metaDescription,
         metaKeywords: body.tags ?? existing.metaKeywords,
+        bengaliName: body.bengaliProductName ?? body.bengaliName ?? existing.bengaliName,
+        bengaliDescription: body.bengaliMetaDescription ?? body.bengaliDescription ?? existing.bengaliDescription,
+        focusKeyword: body.focusKeyword ?? existing.focusKeyword,
+        ogTitle: body.ogTitle ?? existing.ogTitle,
+        ogImageUrl: body.ogImageUrl ?? body.ogImagePreview ?? existing.ogImageUrl,
+        // Physical
+        weight: body.weight !== undefined ? (body.weight ? parseFloat(body.weight) : null) : existing.weight,
+        length: body.dimensions?.length !== undefined ? (body.dimensions.length ? parseFloat(body.dimensions.length) : null) : existing.length,
+        width: body.dimensions?.width !== undefined ? (body.dimensions.width ? parseFloat(body.dimensions.width) : null) : existing.width,
+        height: body.dimensions?.height !== undefined ? (body.dimensions.height ? parseFloat(body.dimensions.height) : null) : existing.height,
+        // Structured Data
+        condition: body.productCondition ?? body.condition ?? existing.condition,
+        gtin: body.gtin ?? existing.gtin,
+        // NEW fields
+        subcategory: body.subcategory ?? existing.subcategory,
+        skinType: Array.isArray(body.skinType) ? body.skinType : existing.skinType,
+        ingredients: body.ingredients ?? existing.ingredients,
+        shelfLife: body.shelfLife ?? existing.shelfLife,
+        expiryDate: body.expiryDate ? new Date(body.expiryDate) : existing.expiryDate,
+        originCountry: body.originCountry ?? existing.originCountry,
+        shippingWeight: body.shippingWeight ?? existing.shippingWeight,
+        isFragile: body.isFragile !== undefined ? (body.isFragile === true || body.isFragile === 'true') : existing.isFragile,
+        discountPercentage: body.discountPercentage !== undefined ? (body.discountPercentage ? parseFloat(body.discountPercentage) : null) : existing.discountPercentage,
+        salePrice: body.salePrice !== undefined ? (body.salePrice ? parseFloat(body.salePrice) : null) : existing.salePrice,
+        offerStartDate: body.offerStartDate !== undefined ? (body.offerStartDate ? new Date(body.offerStartDate) : null) : existing.offerStartDate,
+        offerEndDate: body.offerEndDate !== undefined ? (body.offerEndDate ? new Date(body.offerEndDate) : null) : existing.offerEndDate,
+        flashSaleEligible: body.flashSaleEligible !== undefined ? (body.flashSaleEligible === true || body.flashSaleEligible === 'true') : existing.flashSaleEligible,
+        returnEligible: body.returnEligible !== undefined ? body.returnEligible !== false : existing.returnEligible,
+        codAvailable: body.codAvailable !== undefined ? body.codAvailable !== false : existing.codAvailable,
+        preOrderOption: body.preOrderOption !== undefined ? (body.preOrderOption === true || body.preOrderOption === 'true') : existing.preOrderOption,
+        barcode: body.barcode ?? existing.barcode,
+        relatedProducts: body.relatedProducts ?? existing.relatedProducts,
         categoryId,
         brandId,
       },
@@ -248,7 +255,6 @@ export async function PUT(
       },
     });
 
-    // Queue ES sync – non-blocking
     productQueue.add('index', { type: 'index', productId: updated.id }).catch((err) => {
       console.error('[productQueue] Failed to enqueue index job for', updated.id, err);
     });
@@ -266,15 +272,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-
     const existing = await prisma.product.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
+    if (!existing) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
     await prisma.product.delete({ where: { id } });
 
-    // Queue ES delete – non-blocking
     productQueue.add('delete', { type: 'delete', productId: id }).catch((err) => {
       console.error('[productQueue] Failed to enqueue delete job for', id, err);
     });
