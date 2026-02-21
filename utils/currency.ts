@@ -1,5 +1,6 @@
-﻿/**
+/**
  * Currency utility for Bangladeshi Taka (BDT)
+ * Price is now stored directly in BDT in the database — no conversion needed.
  */
 
 export const CURRENCY_CODE = 'BDT';
@@ -8,9 +9,6 @@ export const CURRENCY_LOCALE = 'en-BD';
 
 /**
  * Format price in Bangladeshi Taka
- * @param amount - The amount to format
- * @param options - Formatting options
- * @returns Formatted price string
  */
 export function formatPrice(
   amount: number,
@@ -38,37 +36,25 @@ export function formatPrice(
 }
 
 /**
- * Convert USD to BDT (approximate rate - you may want to use real-time rates)
- * @param usdAmount - Amount in USD
- * @returns Amount in BDT
+ * @deprecated Price is now stored in BDT directly. Use formatPrice() instead.
+ * Kept for backward compatibility — returns amount unchanged.
  */
-export function convertUSDtoBDT(usdAmount: number): number {
-  const EXCHANGE_RATE = 117; // Approximate exchange rate (1 USD ≈ 117 BDT)
-  return Math.round(usdAmount * EXCHANGE_RATE);
+export function convertUSDtoBDT(amount: number): number {
+  return amount; // No conversion — price is already in BDT
 }
 
 /**
- * Format a price that was originally in USD to BDT
- * @param usdAmount - Original USD amount
- * @param options - Formatting options
- * @returns Formatted BDT price string
+ * @deprecated Use formatPrice() directly.
  */
 export function formatPriceFromUSD(
-  usdAmount: number,
-  options: {
-    showSymbol?: boolean;
-    showCode?: boolean;
-  } = {}
+  amount: number,
+  options: { showSymbol?: boolean; showCode?: boolean } = {}
 ): string {
-  const bdtAmount = convertUSDtoBDT(usdAmount);
-  return formatPrice(bdtAmount, options);
+  return formatPrice(amount, options);
 }
 
 /**
  * Format a number with locale-specific formatting
- * @param num - The number to format
- * @param options - Formatting options
- * @returns Formatted number string
  */
 export function formatNumber(
   num: number,
@@ -90,9 +76,6 @@ export function formatNumber(
   });
 }
 
-/**
- * Default export for convenience
- */
 export default {
   formatPrice,
   convertUSDtoBDT,
