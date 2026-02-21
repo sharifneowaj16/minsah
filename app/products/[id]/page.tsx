@@ -7,7 +7,7 @@ import TopBar from '../../components/TopBar';
 import Footer from '../../components/Footer';
 import Link from 'next/link';
 import { ShoppingCart, Heart, Minus, Plus, ArrowLeft, Star } from 'lucide-react';
-import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
+import { formatPrice } from '@/utils/currency';
 import { useProducts } from '@/contexts/ProductsContext';
 import { useCart } from '@/contexts/CartContext';
 
@@ -141,12 +141,12 @@ export default function ProductDetailPage() {
                 <div className="mb-5">
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-3xl font-bold text-pink-600">
-                      {formatPrice(convertUSDtoBDT(product.price))}
+                      {formatPrice(product.price)}
                     </span>
                     {product.originalPrice && product.originalPrice > product.price && (
                       <>
                         <span className="text-xl text-gray-400 line-through">
-                          {formatPrice(convertUSDtoBDT(product.originalPrice))}
+                          {formatPrice(product.originalPrice)}
                         </span>
                         <span className="bg-red-100 text-red-600 px-2 py-1 rounded-lg text-sm font-bold">
                           {discountPct}% OFF
@@ -156,7 +156,7 @@ export default function ProductDetailPage() {
                   </div>
                   {product.originalPrice && product.originalPrice > product.price && (
                     <p className="text-green-600 text-sm mt-1 font-medium">
-                      You save {formatPrice(convertUSDtoBDT(product.originalPrice - product.price))}!
+                      You save {formatPrice(product.originalPrice - product.price)}!
                     </p>
                   )}
                 </div>
