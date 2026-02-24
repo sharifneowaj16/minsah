@@ -783,3 +783,28 @@ model SearchClickMetrics {
   @@index([clicks])
   @@map("search_click_metrics")
 }
+// ==========================================
+// Social Media Messages
+// ==========================================
+
+model SocialMessage {
+  id             String   @id @default(cuid())
+  platform       String   // facebook, instagram, whatsapp, youtube
+  type           String   // message, comment
+  externalId     String?  // ID from the platform
+  conversationId String?
+  postId         String?
+  senderId       String?
+  senderName     String?
+  senderAvatar   String?
+  content        String   @db.Text
+  isIncoming     Boolean  @default(true)
+  isRead         Boolean  @default(false)
+  timestamp      DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([platform])
+  @@index([isRead])
+  @@index([timestamp])
+}
