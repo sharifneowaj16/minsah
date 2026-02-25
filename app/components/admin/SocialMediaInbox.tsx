@@ -72,16 +72,30 @@ export default function SocialMediaInbox({ className = '' }: SocialMediaInboxPro
     return () => clearInterval(interval);
   }, []);
 
-  const loadMessages = async () => {
+const loadMessages = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const mockMessages = generateMockMessages();
-      setMessages(mockMessages);
-      setUnreadCount(mockMessages.filter(m => m.status === 'unread').length);
-      if (mockMessages.length > 0 && !selectedConversation) {
-        setSelectedConversation(mockMessages[0].conversationId);
+      const res = await fetch('/api/social/messages');
+      const data = await res.json();
+      const mapped = data.messages.map((m: any) => ({
+        id: m.id,
+        platform: m.platform,
+        type: m.type,
+        conversationId: m.conversationId || m.id,
+        sender: {
+          id: m.senderId || 'unknown',
+          name: m.senderName || 'Unknown',
+          avatar: m.senderAvatar,
+        },
+        content: { text: m.content },
+        status: m.isRead ? 'read' : 'unread',
+        timestamp: m.timestamp,
+        isIncoming: m.isIncoming,
+      }));
+      setMessages(mapped);
+      setUnreadCount(data.unreadCount);
+      if (mapped.length > 0 && !selectedConversation) {
+        setSelectedConversation(mapped[0].conversationId);
       }
     } catch (error) {
       console.error('Error loading messages:', error);
