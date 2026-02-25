@@ -35,6 +35,9 @@ export default function CheckoutPage() {
 
     setIsPlacingOrder(true);
     try {
+      // Detect if this is a real DB id (cuid format) or a local temp id (numeric timestamp)
+      const isRealDbId = selectedAddress.id && !/^\d+$/.test(selectedAddress.id);
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,7 +50,18 @@ export default function CheckoutPage() {
             price: item.price,
             quantity: item.quantity,
           })),
-          addressId: selectedAddress.id,
+          // Send real DB id if available
+          addressId: isRealDbId ? selectedAddress.id : undefined,
+          // Always send addressData as fallback so server can resolve/create
+          addressData: {
+            fullName:       selectedAddress.fullName,
+            phoneNumber:    selectedAddress.phoneNumber,
+            address:        selectedAddress.address,
+            zone:           selectedAddress.zone,
+            city:           selectedAddress.city,
+            provinceRegion: selectedAddress.provinceRegion,
+            landmark:       selectedAddress.landmark,
+          },
           paymentMethod: selectedPaymentMethod.type,
           subtotal,
           shippingCost,
@@ -102,7 +116,7 @@ export default function CheckoutPage() {
               </div>
               <div className="text-left">
                 <h2 className="font-bold text-minsah-dark">Shipping Address</h2>
-                {selectedAddress && !expandedSection && (
+                {selectedAddress && expandedSection !== 'address' && (
                   <p className="text-xs text-minsah-secondary line-clamp-1">
                     {selectedAddress.address}
                   </p>
@@ -165,7 +179,7 @@ export default function CheckoutPage() {
               </div>
               <div className="text-left">
                 <h2 className="font-bold text-minsah-dark">Payment Method</h2>
-                {selectedPaymentMethod && !expandedSection && (
+                {selectedPaymentMethod && expandedSection !== 'payment' && (
                   <p className="text-xs text-minsah-secondary">
                     {selectedPaymentMethod.name}
                   </p>
@@ -178,39 +192,6 @@ export default function CheckoutPage() {
               <ChevronDown className="text-minsah-secondary" size={20} />
             )}
           </button>
-
-          {expandedSection === 'payment' && (
-            <div className="px-4 pb-4 border-t border-minsah-accent">
-              {selectedPaymentMethod ? (
-                <div className="mt-4 p-4 bg-minsah-accent rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                      <span className="text-xl">{selectedPaymentMethod.icon}</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-minsah-dark">{selectedPaymentMethod.name}</p>
-                      {selectedPaymentMethod.details && (
-                        <p className="text-xs text-minsah-secondary">{selectedPaymentMethod.details}</p>
-                      )}
-                    </div>
-                  </div>
-                  <Link
-                    href="/checkout/payment-method"
-                    className="p-2 bg-white rounded-lg hover:bg-minsah-light transition"
-                  >
-                    <Edit2 size={16} className="text-minsah-primary" />
-                  </Link>
-                </div>
-              ) : (
-                <Link
-                  href="/checkout/payment-method"
-                  className="mt-4 block w-full bg-minsah-primary text-minsah-light text-center py-3 rounded-xl font-semibold hover:bg-minsah-dark transition"
-                >
-                  Select Payment Method
-                </Link>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Order Summary Section */}
@@ -230,80 +211,50 @@ export default function CheckoutPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-minsah-primary">{formatPrice(total)}</span>
-              {expandedSection === 'summary' ? (
-                <ChevronUp className="text-minsah-secondary" size={20} />
-              ) : (
-                <ChevronDown className="text-minsah-secondary" size={20} />
-              )}
-            </div>
+            {expandedSection === 'summary' ? (
+              <ChevronUp className="text-minsah-secondary" size={20} />
+            ) : (
+              <ChevronDown className="text-minsah-secondary" size={20} />
+            )}
           </button>
 
           {expandedSection === 'summary' && (
             <div className="px-4 pb-4 border-t border-minsah-accent">
-              {/* Cart Items */}
               <div className="mt-4 space-y-3">
                 {items.map((item) => (
-                  <div key={item.id} className="flex gap-3 p-3 bg-minsah-accent rounded-xl">
-                    <div className="w-16 h-16 bg-gradient-to-br from-white to-minsah-light rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {item.image && (item.image.startsWith('/') || item.image.startsWith('http') || item.image.startsWith('data:')) ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-2xl">{item.image || '✨'}</span>
-                      )}
+                  <div key={item.id} className="flex items-center gap-3">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-12 h-12 rounded-lg object-cover"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-minsah-dark line-clamp-1">{item.name}</p>
+                      <p className="text-xs text-minsah-secondary">Qty: {item.quantity}</p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-minsah-dark line-clamp-1 mb-1">
-                        {item.name}
-                      </h3>
-                      <p className="text-xs text-minsah-secondary mb-2">
-                        {formatPrice(item.price)}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs">
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="w-6 h-6 bg-white rounded flex items-center justify-center hover:bg-minsah-secondary hover:text-white transition"
-                        >
-                          −
-                        </button>
-                        <span className="font-semibold">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-6 h-6 bg-white rounded flex items-center justify-center hover:bg-minsah-secondary hover:text-white transition"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-minsah-primary">
-                        {formatPrice(item.price * item.quantity)}
-                      </p>
-                    </div>
+                    <p className="text-sm font-bold text-minsah-primary">
+                      {formatPrice(item.price * item.quantity)}
+                    </p>
                   </div>
                 ))}
-              </div>
 
-              {/* Price Breakdown */}
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-minsah-secondary">Subtotal</span>
-                  <span className="font-semibold text-minsah-dark">{formatPrice(subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-minsah-secondary">Shipping Cost</span>
-                  <span className="font-semibold text-minsah-dark">
-                    {shippingCost === 0 ? 'FREE' : formatPrice(shippingCost)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-minsah-secondary">Tax</span>
-                  <span className="font-semibold text-minsah-dark">{formatPrice(tax)}</span>
-                </div>
-                <div className="border-t border-minsah-secondary/20 pt-2 flex justify-between">
-                  <span className="font-bold text-minsah-dark">Total</span>
-                  <span className="font-bold text-minsah-primary text-lg">{formatPrice(total)}</span>
+                <div className="border-t border-minsah-accent pt-3 space-y-2">
+                  <div className="flex justify-between text-sm text-minsah-secondary">
+                    <span>Subtotal</span>
+                    <span>{formatPrice(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-minsah-secondary">
+                    <span>Shipping</span>
+                    <span>{shippingCost === 0 ? 'Free' : formatPrice(shippingCost)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-minsah-secondary">
+                    <span>Tax (5%)</span>
+                    <span>{formatPrice(tax)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-minsah-dark">
+                    <span>Total</span>
+                    <span>{formatPrice(total)}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -312,26 +263,23 @@ export default function CheckoutPage() {
       </div>
 
       {/* Place Order Button */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-4 bg-gradient-to-t from-minsah-light via-minsah-light to-transparent">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-minsah-accent shadow-lg">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm text-minsah-secondary">Total</span>
+          <span className="text-xl font-bold text-minsah-primary">{formatPrice(total)}</span>
+        </div>
         <button
           onClick={handlePlaceOrder}
-          disabled={!selectedAddress || !selectedPaymentMethod || isPlacingOrder}
-          className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition flex items-center justify-center gap-2 ${
-            selectedAddress && selectedPaymentMethod && !isPlacingOrder
-              ? 'bg-minsah-primary text-minsah-light hover:bg-minsah-dark'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
+          disabled={isPlacingOrder || items.length === 0}
+          className="w-full bg-minsah-primary text-minsah-light py-4 rounded-xl font-bold text-base shadow-lg hover:bg-minsah-dark transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPlacingOrder ? (
-            <>
-              <span className="animate-spin">⏳</span>
-              <span>Placing Order...</span>
-            </>
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Placing Order...
+            </span>
           ) : (
-            <>
-              <span>Place Order</span>
-              <span className="text-xl">🔒</span>
-            </>
+            'Place Order'
           )}
         </button>
       </div>
