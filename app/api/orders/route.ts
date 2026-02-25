@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/nextauth';
 import prisma from '@/lib/prisma';
+import { Prisma, OrderStatus } from '@/generated/prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,7 @@ interface AddressDataInput {
 // ─── POST /api/orders ─────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    // 1. Auth check — userId required by schema
+    // 1. Auth — userId is required by Order schema
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -67,27 +68,28 @@ export async function POST(request: NextRequest) {
     if (!items?.length) {
       return NextResponse.json({ error: 'No items in order' }, { status: 400 });
     }
-
     if (!paymentMethod) {
       return NextResponse.json({ error: 'Payment method is required' }, { status: 400 });
     }
 
-    // 3. Validate items — check all productIds exist before transaction
+    // 3. Fetch products & variants from DB — never trust client prices
     const productIds = items.map((i) => i.productId);
-    const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId as string);
+    const variantIds = items
+      .filter((i) => i.variantId)
+      .map((i) => i.variantId as string);
 
     const [products, variants] = await Promise.all([
       prisma.product.findMany({
         where: { id: { in: productIds }, isActive: true },
         select: {
-          id: true,
-          name: true,
-          sku: true,
-          price: true,
-          quantity: true,
-          trackInventory: true,
-          allowBackorder: true,
-          lowStockThreshold: true,
+          id:               true,
+          name:             true,
+          sku:              true,
+          price:            true,
+          quantity:         true,
+          trackInventory:   true,
+          allowBackorder:   true,
+          lowStockThreshold:true,
         },
       }),
       variantIds.length
@@ -98,10 +100,10 @@ export async function POST(request: NextRequest) {
         : Promise.resolve([]),
     ]);
 
-    // Check all products exist
     const productMap = new Map(products.map((p) => [p.id, p]));
     const variantMap = new Map(variants.map((v) => [v.id, v]));
 
+    // 4. Validate stock before entering transaction
     for (const item of items) {
       const product = productMap.get(item.productId);
       if (!product) {
@@ -111,7 +113,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Stock check
       if (product.trackInventory && !product.allowBackorder) {
         const availableStock = item.variantId
           ? (variantMap.get(item.variantId)?.quantity ?? 0)
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             {
               error: `Insufficient stock for "${product.name}". Available: ${availableStock}, Requested: ${item.quantity}`,
-              code: 'INSUFFICIENT_STOCK',
+              code:      'INSUFFICIENT_STOCK',
               productId: item.productId,
             },
             { status: 409 }
@@ -130,13 +131,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Calculate server-side prices (never trust client prices)
+    // 5. Calculate totals server-side
     const orderItems = items.map((item) => {
-      const product = productMap.get(item.productId)!;
-      const variant = item.variantId ? variantMap.get(item.variantId) : null;
+      const product   = productMap.get(item.productId)!;
+      const variant   = item.variantId ? variantMap.get(item.variantId) : null;
       const unitPrice = parseFloat((variant?.price ?? product.price).toString());
       const itemTotal = parseFloat((unitPrice * item.quantity).toFixed(2));
-      const sku = variant?.sku ?? product.sku;
+      const sku  = variant?.sku  ?? product.sku;
       const name = variant ? `${product.name} - ${variant.name}` : product.name;
 
       return {
@@ -144,38 +145,36 @@ export async function POST(request: NextRequest) {
         variantId: item.variantId || null,
         name,
         sku,
-        price: unitPrice,
+        price:    unitPrice,
         quantity: item.quantity,
-        total: itemTotal,
+        total:    itemTotal,
       };
     });
 
-    const subtotal = parseFloat(
-      orderItems.reduce((sum, i) => sum + i.total, 0).toFixed(2)
-    );
-    const shippingCostNum = parseFloat(shippingCost.toString()) || 0;
-    const taxAmount = parseFloat((subtotal * 0.05).toFixed(2)); // 5% tax
-    const discountAmount = parseFloat((couponDiscount ?? 0).toString());
-    const total = parseFloat(
+    const subtotal        = parseFloat(orderItems.reduce((s, i) => s + i.total, 0).toFixed(2));
+    const shippingCostNum = parseFloat(String(shippingCost)) || 0;
+    const taxAmount       = parseFloat((subtotal * 0.05).toFixed(2));
+    const discountAmount  = parseFloat(String(couponDiscount ?? 0));
+    const total           = parseFloat(
       (subtotal + shippingCostNum + taxAmount - discountAmount).toFixed(2)
     );
 
-    // 5. Run everything inside a single transaction
+    // 6. Single transaction: resolve address → create order → decrement stock → clear cart
     const order = await prisma.$transaction(async (tx) => {
-      // 5a. Resolve or create shipping address
+
+      // 6a. Resolve shipping address
       let resolvedAddressId: string | null = null;
 
       if (addressId) {
-        const dbAddress = await tx.address.findFirst({
+        const dbAddr = await tx.address.findFirst({
           where: { id: addressId, userId },
         });
-
-        if (dbAddress) {
-          resolvedAddressId = dbAddress.id;
+        if (dbAddr) {
+          resolvedAddressId = dbAddr.id;
         } else {
-          // Temp/local id — use default or latest
+          // Temp/local id — fall back to default or latest
           const fallback = await tx.address.findFirst({
-            where: { userId },
+            where:   { userId },
             orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
           });
           resolvedAddressId = fallback?.id ?? null;
@@ -183,14 +182,14 @@ export async function POST(request: NextRequest) {
       }
 
       if (!resolvedAddressId && addressData) {
-        const newAddr = await tx.address.create({
+        const created = await tx.address.create({
           data: {
             userId,
             firstName:  addressData.fullName || addressData.firstName || '',
-            lastName:   addressData.lastName || '',
-            phone:      addressData.phoneNumber || addressData.phone || '',
-            street1:    addressData.address || addressData.street1 || '',
-            street2:    addressData.zone || addressData.street2 || null,
+            lastName:   addressData.lastName  || '',
+            phone:      addressData.phoneNumber || addressData.phone  || '',
+            street1:    addressData.address   || addressData.street1 || '',
+            street2:    addressData.zone      || addressData.street2  || null,
             city:       addressData.city,
             state:      addressData.provinceRegion || addressData.state || '',
             postalCode: addressData.postalCode || '',
@@ -199,25 +198,25 @@ export async function POST(request: NextRequest) {
             type:       'SHIPPING',
           },
         });
-        resolvedAddressId = newAddr.id;
+        resolvedAddressId = created.id;
       }
 
       if (!resolvedAddressId) {
         throw new Error('SHIPPING_ADDRESS_REQUIRED');
       }
 
-      // 5b. Generate unique order number
+      // 6b. Unique order number
       const orderNumber = `MB${Date.now()}${Math.random()
         .toString(36)
         .substring(2, 6)
         .toUpperCase()}`;
 
-      // 5c. Create order
+      // 6c. Create order
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
           userId,
-          addressId: resolvedAddressId,
+          addressId:      resolvedAddressId,
           status:         'PENDING',
           paymentStatus:  'PENDING',
           paymentMethod,
@@ -226,23 +225,23 @@ export async function POST(request: NextRequest) {
           taxAmount,
           discountAmount,
           total,
-          couponCode:     couponCode || null,
+          couponCode:     couponCode     || null,
           couponDiscount: discountAmount > 0 ? discountAmount : null,
-          customerNote:   customerNote || null,
+          customerNote:   customerNote   || null,
           items: {
             create: orderItems,
           },
         },
       });
 
-      // 5d. Decrement stock for each item
+      // 6d. Decrement stock
       for (const item of orderItems) {
         if (item.variantId) {
           const variant = variantMap.get(item.variantId);
           if (variant) {
             await tx.productVariant.update({
               where: { id: item.variantId },
-              data: { quantity: { decrement: item.quantity } },
+              data:  { quantity: { decrement: item.quantity } },
             });
           }
         } else {
@@ -250,13 +249,13 @@ export async function POST(request: NextRequest) {
           if (product.trackInventory) {
             await tx.product.update({
               where: { id: item.productId },
-              data: { quantity: { decrement: item.quantity } },
+              data:  { quantity: { decrement: item.quantity } },
             });
           }
         }
       }
 
-      // 5e. Clear user's cart
+      // 6e. Clear user cart
       await tx.cartItem.deleteMany({ where: { userId } });
 
       return newOrder;
@@ -282,7 +281,7 @@ export async function POST(request: NextRequest) {
       }
       if (error.message.includes('Unique constraint')) {
         return NextResponse.json(
-          { error: 'Order already exists. Please refresh and try again.' },
+          { error: 'Duplicate order. Please refresh and try again.' },
           { status: 409 }
         );
       }
@@ -304,13 +303,22 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page   = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const page   = Math.max(1, parseInt(searchParams.get('page')  || '1'));
     const limit  = Math.min(50, parseInt(searchParams.get('limit') || '10'));
     const skip   = (page - 1) * limit;
-    const status = searchParams.get('status') || '';
+    const status = searchParams.get('status')?.toUpperCase();
 
-    const where: { userId: string; status?: string } = { userId: session.user.id };
-    if (status) where.status = status.toUpperCase();
+    // Validate status against enum
+    const validStatuses = Object.values(OrderStatus);
+    const orderStatus =
+      status && validStatuses.includes(status as OrderStatus)
+        ? (status as OrderStatus)
+        : undefined;
+
+    const where: Prisma.OrderWhereInput = {
+      userId: session.user.id,
+      ...(orderStatus ? { status: orderStatus } : {}),
+    };
 
     const [orders, totalCount] = await Promise.all([
       prisma.order.findMany({
