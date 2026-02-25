@@ -293,34 +293,44 @@ const loadMessages = async () => {
   const handleReply = async (conversationId: string) => {
     if (!replyText.trim()) return;
 
-    const newReply: SocialMessage = {
-      id: `reply-${Date.now()}`,
-      platform: messages.find(m => m.conversationId === conversationId)?.platform || 'facebook',
-      type: 'message',
-      conversationId,
-      sender: {
-        id: 'admin',
-        name: 'Minsah Beauty',
-      },
-      content: {
-        text: replyText,
-      },
-      status: 'read',
-      timestamp: new Date().toISOString(),
-      isIncoming: false,
-    };
+    const originalMessage = messages.find(m => m.conversationId === conversationId);
+    if (!originalMessage) return;
 
-    setMessages(prev =>
-      prev.map(msg =>
-        msg.conversationId === conversationId
-          ? { ...msg, status: 'replied' as const, replies: [...(msg.replies || []), newReply] }
-          : msg
-      )
-    );
+    try {
+      await fetch('/api/social/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: originalMessage.platform,
+          messageId: originalMessage.id,
+          conversationId,
+          text: replyText,
+        }),
+      });
 
-    setReplyText('');
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+      const newReply: SocialMessage = {
+        id: `reply-${Date.now()}`,
+        platform: originalMessage.platform,
+        type: 'message',
+        conversationId,
+        sender: { id: 'admin', name: 'Minsah Beauty' },
+        content: { text: replyText },
+        status: 'read',
+        timestamp: new Date().toISOString(),
+        isIncoming: false,
+      };
+
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.conversationId === conversationId
+            ? { ...msg, status: 'replied' as const, replies: [...(msg.replies || []), newReply] }
+            : msg
+        )
+      );
+      setReplyText('');
+    } catch (error) {
+      console.error('Reply failed:', error);
+    }
   };
 
 const markAsRead = async (messageId: string) => {
