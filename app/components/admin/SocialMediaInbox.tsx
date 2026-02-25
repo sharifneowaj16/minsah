@@ -323,7 +323,12 @@ const loadMessages = async () => {
     await new Promise(resolve => setTimeout(resolve, 500));
   };
 
-  const markAsRead = (messageId: string) => {
+const markAsRead = async (messageId: string) => {
+    await fetch('/api/social/messages', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: messageId }),
+    });
     setMessages(prev =>
       prev.map(msg =>
         msg.id === messageId ? { ...msg, status: 'read' as const } : msg
