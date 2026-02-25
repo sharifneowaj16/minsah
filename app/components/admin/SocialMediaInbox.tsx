@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { fixEncoding } from '@/lib/fixEncoding';
@@ -6,16 +6,9 @@ import {
   MessageCircle,
   Send,
   CheckCircle,
-  Clock,
-  AlertCircle,
   UserCircle,
-  Image,
-  Video,
-  FileText,
   Bell,
   Search,
-  Filter,
-  X,
 } from 'lucide-react';
 
 export interface SocialMessage {
@@ -65,14 +58,13 @@ export default function SocialMediaInbox({ className = '' }: SocialMediaInboxPro
 
   useEffect(() => {
     loadMessages();
-    // Simulate real-time updates
     const interval = setInterval(() => {
-      checkNewMessages();
-    }, 5000);
+      loadMessages();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
-const loadMessages = async () => {
+  const loadMessages = async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/social/messages');
@@ -102,192 +94,6 @@ const loadMessages = async () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const checkNewMessages = async () => {
-    // Simulate checking for new messages
-    const newMessages = generateNewMockMessages();
-    if (newMessages.length > 0) {
-      setMessages(prev => [...newMessages, ...prev]);
-      setUnreadCount(prev => prev + newMessages.length);
-      // Show notification
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(`New ${newMessages[0].platform} message`, {
-          body: newMessages[0].content.text.substring(0, 50) + '...',
-          icon: '/favicon.ico',
-        });
-      }
-    }
-  };
-
-  const generateMockMessages = (): SocialMessage[] => {
-    return [
-      {
-        id: 'msg-001',
-        platform: 'facebook',
-        type: 'comment',
-        conversationId: 'conv-001',
-        sender: {
-          id: 'user-001',
-          name: 'Sarah Johnson',
-          username: 'sarah.j',
-          avatar: 'https://ui-avatars.com/api/?name=Sarah+Johnson',
-        },
-        content: {
-          text: 'Love this product! When will it be back in stock?',
-        },
-        post: {
-          id: 'post-001',
-          text: 'New Vitamin C Serum is here! ✨',
-          media: 'https://example.com/serum.jpg',
-        },
-        status: 'unread',
-        timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-        isIncoming: true,
-      },
-      {
-        id: 'msg-002',
-        platform: 'instagram',
-        type: 'dm',
-        conversationId: 'conv-002',
-        sender: {
-          id: 'user-002',
-          name: 'Emily Chen',
-          username: 'emily.chen',
-          avatar: 'https://ui-avatars.com/api/?name=Emily+Chen',
-        },
-        content: {
-          text: 'Hi! I saw your post about the face cream. Can you tell me more about it?',
-        },
-        status: 'unread',
-        timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-        isIncoming: true,
-      },
-      {
-        id: 'msg-003',
-        platform: 'whatsapp',
-        type: 'message',
-        conversationId: 'conv-003',
-        sender: {
-          id: 'user-003',
-          name: 'Maria Garcia',
-          phone: '+1234567890',
-          avatar: 'https://ui-avatars.com/api/?name=Maria+Garcia',
-        },
-        content: {
-          text: 'Hello! I want to order the Rose Face Oil. Is it available?',
-        },
-        status: 'read',
-        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-        isIncoming: true,
-        replies: [
-          {
-            id: 'reply-001',
-            platform: 'whatsapp',
-            type: 'message',
-            conversationId: 'conv-003',
-            sender: {
-              id: 'admin',
-              name: 'Minsah Beauty',
-            },
-            content: {
-              text: 'Yes, it\'s available! Would you like to place an order?',
-            },
-            status: 'read',
-            timestamp: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-            isIncoming: false,
-          },
-        ],
-      },
-      {
-        id: 'msg-004',
-        platform: 'facebook',
-        type: 'comment',
-        conversationId: 'conv-004',
-        sender: {
-          id: 'user-004',
-          name: 'Jessica Smith',
-          username: 'jessica.s',
-          avatar: 'https://ui-avatars.com/api/?name=Jessica+Smith',
-        },
-        content: {
-          text: 'Amazing results! My skin looks so much better now. Thank you! ❤️',
-        },
-        post: {
-          id: 'post-002',
-          text: 'Before & After transformation using our skincare routine',
-        },
-        status: 'replied',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        isIncoming: true,
-        replies: [
-          {
-            id: 'reply-002',
-            platform: 'facebook',
-            type: 'comment',
-            conversationId: 'conv-004',
-            sender: {
-              id: 'admin',
-              name: 'Minsah Beauty',
-            },
-            content: {
-              text: 'Thank you so much for sharing! We\'re thrilled to hear about your results! 🌟',
-            },
-            status: 'read',
-            timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
-            isIncoming: false,
-          },
-        ],
-      },
-      {
-        id: 'msg-005',
-        platform: 'instagram',
-        type: 'comment',
-        conversationId: 'conv-005',
-        sender: {
-          id: 'user-005',
-          name: 'Ashley Wilson',
-          username: 'ashley.w',
-          avatar: 'https://ui-avatars.com/api/?name=Ashley+Wilson',
-        },
-        content: {
-          text: 'How do I use this product?',
-        },
-        post: {
-          id: 'post-003',
-          text: 'New product launch! 🌸',
-        },
-        status: 'unread',
-        timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-        isIncoming: true,
-      },
-    ];
-  };
-
-  const generateNewMockMessages = (): SocialMessage[] => {
-    // Simulate occasional new messages
-    if (Math.random() > 0.7) {
-      return [
-        {
-          id: `msg-${Date.now()}`,
-          platform: ['facebook', 'instagram', 'whatsapp'][Math.floor(Math.random() * 3)] as any,
-          type: Math.random() > 0.5 ? 'comment' : 'message',
-          conversationId: `conv-${Date.now()}`,
-          sender: {
-            id: `user-${Date.now()}`,
-            name: ['Customer A', 'Customer B', 'Customer C'][Math.floor(Math.random() * 3)],
-            avatar: `https://ui-avatars.com/api/?name=Customer`,
-          },
-          content: {
-            text: 'This is a new message from a customer',
-          },
-          status: 'unread',
-          timestamp: new Date().toISOString(),
-          isIncoming: true,
-        },
-      ];
-    }
-    return [];
   };
 
   const handleReply = async (conversationId: string) => {
@@ -333,7 +139,7 @@ const loadMessages = async () => {
     }
   };
 
-const markAsRead = async (messageId: string) => {
+  const markAsRead = async (messageId: string) => {
     await fetch('/api/social/messages', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -378,8 +184,12 @@ const markAsRead = async (messageId: string) => {
   const filteredMessages = messages.filter(msg => {
     if (filterPlatform !== 'all' && msg.platform !== filterPlatform) return false;
     if (filterStatus !== 'all' && msg.status !== filterStatus) return false;
-    if (searchQuery && !msg.content.text.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !msg.sender.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (
+      searchQuery &&
+      !msg.content.text.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !msg.sender.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+      return false;
     return true;
   });
 
@@ -461,53 +271,60 @@ const markAsRead = async (messageId: string) => {
       <div className="flex-1 flex overflow-hidden">
         {/* Conversations List */}
         <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
-          <div className="p-4 space-y-2">
-            {filteredMessages.map((message) => (
-              <div
-                key={message.id}
-                onClick={() => {
-                  setSelectedConversation(message.conversationId);
-                  markAsRead(message.id);
-                }}
-                className={`p-4 rounded-lg cursor-pointer transition-colors ${
-                  selectedConversation === message.conversationId
-                    ? 'bg-blue-50 border-2 border-blue-500'
-                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="relative">
-                    {message.sender.avatar ? (
-                      <img
-                        src={message.sender.avatar}
-                        alt={message.sender.name}
-                        className="w-10 h-10 rounded-full"
-                      />
-                    ) : (
-                      <UserCircle className="w-10 h-10 text-gray-400" />
-                    )}
-                    <div className="absolute -bottom-1 -right-1">
-                      {getPlatformIcon(message.platform)}
+          {filteredMessages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+              <MessageCircle className="w-12 h-12 mb-3" />
+              <p className="text-sm">No messages yet</p>
+            </div>
+          ) : (
+            <div className="p-4 space-y-2">
+              {filteredMessages.map((message) => (
+                <div
+                  key={message.id}
+                  onClick={() => {
+                    setSelectedConversation(message.conversationId);
+                    markAsRead(message.id);
+                  }}
+                  className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                    selectedConversation === message.conversationId
+                      ? 'bg-blue-50 border-2 border-blue-500'
+                      : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      {message.sender.avatar ? (
+                        <img
+                          src={message.sender.avatar}
+                          alt={message.sender.name}
+                          className="w-10 h-10 rounded-full"
+                        />
+                      ) : (
+                        <UserCircle className="w-10 h-10 text-gray-400" />
+                      )}
+                      <div className="absolute -bottom-1 -right-1">
+                        {getPlatformIcon(message.platform)}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {message.sender.name}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {message.sender.name}
+                        </p>
+                        {getStatusIcon(message.status)}
+                      </div>
+                      <p className="text-xs text-gray-500 mb-1">
+                        {message.platform} • {new Date(message.timestamp).toLocaleTimeString()}
                       </p>
-                      {getStatusIcon(message.status)}
+                      <p className="text-sm text-gray-700 line-clamp-2">
+                        {fixEncoding(message.content.text)}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mb-1">
-                      {message.platform} • {new Date(message.timestamp).toLocaleTimeString()}
-                    </p>
-                    <p className="text-sm text-gray-700 line-clamp-2">
-                      {fixEncoding(message.content.text)}
-                    </p>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Message Thread */}
@@ -537,11 +354,15 @@ const markAsRead = async (messageId: string) => {
                       {selectedMessage.sender.username || selectedMessage.sender.phone || selectedMessage.platform}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    selectedMessage.status === 'unread' ? 'bg-blue-100 text-blue-700' :
-                    selectedMessage.status === 'replied' ? 'bg-green-100 text-green-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      selectedMessage.status === 'unread'
+                        ? 'bg-blue-100 text-blue-700'
+                        : selectedMessage.status === 'replied'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
                     {selectedMessage.status}
                   </span>
                 </div>
@@ -569,7 +390,9 @@ const markAsRead = async (messageId: string) => {
                   )}
                   <div className="flex-1">
                     <div className="bg-gray-100 rounded-lg p-4">
-                      <p className="text-sm text-gray-900">{selectedMessage.content.text}</p>
+                      <p className="text-sm text-gray-900">
+                        {fixEncoding(selectedMessage.content.text)}
+                      </p>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       {new Date(selectedMessage.timestamp).toLocaleString()}
@@ -631,4 +454,3 @@ const markAsRead = async (messageId: string) => {
     </div>
   );
 }
-
