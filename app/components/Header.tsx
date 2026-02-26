@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import MegaMenu from './MegaMenu';
 import MobileMenu from './MobileMenu';
 import { User, Heart, ShoppingCart, Search, X, TrendingUp, Package } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SearchSuggestion {
   type: 'product' | 'trending' | 'completion';
@@ -19,6 +20,7 @@ interface SearchSuggestion {
 
 export default function Navbar() {
   const router = useRouter();
+  const { user } = useAuth();
   const [cartCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -31,7 +33,7 @@ export default function Navbar() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -259,14 +261,28 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* User Icon */}
-              <Link href="/login" className="relative" aria-label="Login">
-                <User className="w-6 h-6 text-black hover:text-black/80 transition-colors duration-300" />
+              {/* User Icon — smart: /account if logged in, /login if not */}
+              <Link
+                href={user ? '/account' : '/login'}
+                className="relative"
+                aria-label={user ? 'My Account' : 'Login'}
+              >
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.firstName || 'Account'}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <User className="w-6 h-6 text-black hover:text-black/80 transition-colors duration-300" />
+                )}
               </Link>
+
               {/* Wishlist Icon */}
               <Link href="/wishlist" className="relative">
                 <Heart className="w-6 h-6 text-black hover:text-black/80 transition-colors duration-300" />
               </Link>
+
               {/* Cart Icon */}
               <Link href="/cart" className="relative">
                 <ShoppingCart className="w-6 h-6 text-black hover:text-black/80 transition-colors duration-300" />
