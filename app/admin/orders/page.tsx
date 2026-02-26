@@ -624,7 +624,7 @@ export default function OrdersPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const searchRef = useRef<NodeJS.Timeout>();
+  const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Fetch list ─────────────────────────────────────────────────────────────
 
@@ -654,9 +654,9 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (!hasPermission(PERMISSIONS.ORDERS_VIEW)) return;
-    clearTimeout(searchRef.current);
+    if (searchRef.current) clearTimeout(searchRef.current);
     searchRef.current = setTimeout(() => fetchOrders(1), search ? 400 : 0);
-    return () => clearTimeout(searchRef.current);
+    return () => { if (searchRef.current) clearTimeout(searchRef.current); };
   }, [fetchOrders, hasPermission, search]);
 
   // ── Fetch single order detail ──────────────────────────────────────────────
