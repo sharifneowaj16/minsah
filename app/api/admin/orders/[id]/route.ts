@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyAdminAccessToken } from '@/lib/auth/jwt';
 
-// GET /api/admin/orders/[id] - Get single order details
+// GET /api/admin/orders/[id] — Full order detail (lookup by orderNumber or DB id)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,7 +19,6 @@ export async function GET(
 
     const { id } = await params;
 
-    // Support lookup by orderNumber or DB id
     const order = await prisma.order.findFirst({
       where: { OR: [{ id }, { orderNumber: id }] },
       include: {
@@ -30,6 +29,8 @@ export async function GET(
             lastName: true,
             email: true,
             phone: true,
+            loyaltyPoints: true,
+            createdAt: true,
           },
         },
         items: {
@@ -38,14 +39,31 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
+                slug: true,
                 images: { take: 1, orderBy: { sortOrder: 'asc' } },
               },
             },
-            variant: true,
+            variant: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+                attributes: true,
+                image: true,
+              },
+            },
           },
         },
         shippingAddress: true,
-        payments: true,
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+        returns: {
+          include: {
+            items: true,
+          },
+          orderBy: { requestDate: 'desc' },
+        },
       },
     });
 
@@ -60,7 +78,7 @@ export async function GET(
   }
 }
 
-// PATCH /api/admin/orders/[id] - Update order status, tracking, admin notes
+// PATCH /api/admin/orders/[id] — Update status, tracking, adminNote, paymentStatus
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -79,7 +97,6 @@ export async function PATCH(
     const body = await request.json();
     const { status, paymentStatus, trackingNumber, adminNote } = body;
 
-    // Find order by orderNumber or DB id
     const existing = await prisma.order.findFirst({
       where: { OR: [{ id }, { orderNumber: id }] },
     });
@@ -88,7 +105,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Build update data
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
 
     if (status) {
@@ -104,10 +120,9 @@ export async function PATCH(
       };
       updateData.status = statusMap[status.toLowerCase()] || status.toUpperCase();
 
-      // Set timestamp fields
-      if (status === 'shipped') updateData.shippedAt = new Date();
-      if (status === 'completed' || status === 'delivered') updateData.deliveredAt = new Date();
-      if (status === 'cancelled') updateData.cancelledAt = new Date();
+      if (status === 'shipped' && !existing.shippedAt) updateData.shippedAt = new Date();
+      if ((status === 'completed' || status === 'delivered') && !existing.deliveredAt) updateData.deliveredAt = new Date();
+      if (status === 'cancelled' && !existing.cancelledAt) updateData.cancelledAt = new Date();
     }
 
     if (paymentStatus) {
@@ -120,7 +135,7 @@ export async function PATCH(
         cancelled: 'CANCELLED',
       };
       updateData.paymentStatus = paymentMap[paymentStatus.toLowerCase()] || paymentStatus.toUpperCase();
-      if (paymentStatus === 'paid' || paymentStatus === 'completed') {
+      if ((paymentStatus === 'paid' || paymentStatus === 'completed') && !existing.paidAt) {
         updateData.paidAt = new Date();
       }
     }
@@ -128,7 +143,7 @@ export async function PATCH(
     if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber;
     if (adminNote !== undefined) updateData.adminNote = adminNote;
 
-    // Auto-generate tracking if shipped and no tracking provided
+    // Auto-generate tracking if shipped and none provided
     if (status === 'shipped' && !trackingNumber && !existing.trackingNumber) {
       updateData.trackingNumber = `TRK${Date.now()}`;
     }
@@ -146,7 +161,12 @@ export async function PATCH(
         status: updated.status.toLowerCase(),
         paymentStatus: updated.paymentStatus.toLowerCase(),
         tracking: updated.trackingNumber,
+        adminNote: updated.adminNote,
         updatedAt: updated.updatedAt.toISOString(),
+        shippedAt: updated.shippedAt?.toISOString(),
+        deliveredAt: updated.deliveredAt?.toISOString(),
+        cancelledAt: updated.cancelledAt?.toISOString(),
+        paidAt: updated.paidAt?.toISOString(),
       },
     });
   } catch (error) {
