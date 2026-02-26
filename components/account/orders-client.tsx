@@ -59,6 +59,9 @@ interface Order {
   createdAt: Date;
   estimatedDelivery: Date;
   trackingNumber?: string;
+  steadfastTrackingCode?: string;
+  steadfastStatus?: string;
+  userPhone?: string;
   canReview: boolean;
 }
 
