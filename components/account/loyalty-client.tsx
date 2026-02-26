@@ -162,7 +162,7 @@ export function LoyaltyClient({ userLoyalty, transactions, loyaltyTiers, rewards
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">How to Earn Points</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
-                    { action: 'Make a Purchase', points: `${LOYALTY_CONFIG.points_per_dollar} pts per ৳1`, icon: 'Gift' },
+                    { action: 'Make a Purchase', points: `${LOYALTY_CONFIG.points_per_bdt} pt per ৳1`, icon: 'Gift' },
                     { action: 'Write a Review', points: `${LOYALTY_CONFIG.points_for_review} pts`, icon: 'Star' },
                     { action: 'Refer a Friend', points: `${LOYALTY_CONFIG.points_for_referral_signup} pts`, icon: 'Heart' },
                     { action: 'Birthday Bonus', points: '100 pts', icon: 'Trophy' },
@@ -343,7 +343,6 @@ export function LoyaltyClient({ userLoyalty, transactions, loyaltyTiers, rewards
     </div>
   );
 }
-
 // 'use client';
 
 // import { useState } from 'react';
