@@ -56,13 +56,17 @@ async function getUserOrders(userId: string) {
     })),
     shippingAddress: order.shippingAddress
       ? {
-          name: order.shippingAddress.fullName || '',
-          street: order.shippingAddress.street1 || '',
-          city: order.shippingAddress.city || '',
-          state: order.shippingAddress.state || '',
-          postalCode: order.shippingAddress.postalCode || '',
-          country: order.shippingAddress.country || 'Bangladesh',
-          phone: order.shippingAddress.phone || '',
+          name: [order.shippingAddress.firstName, order.shippingAddress.lastName]
+            .filter(Boolean)
+            .join(' '),
+          street: [order.shippingAddress.street1, order.shippingAddress.street2]
+            .filter(Boolean)
+            .join(', '),
+          city: order.shippingAddress.city,
+          state: order.shippingAddress.state,
+          postalCode: order.shippingAddress.postalCode ?? '',
+          country: order.shippingAddress.country,
+          phone: order.shippingAddress.phone ?? '',
         }
       : null,
   }));
