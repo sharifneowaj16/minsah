@@ -37,6 +37,9 @@ async function getUserOrders(userId: string) {
     estimatedDelivery: order.deliveredAt
       ?? new Date(order.createdAt.getTime() + 7 * 24 * 60 * 60 * 1000),
     trackingNumber: order.trackingNumber ?? undefined,
+    steadfastTrackingCode: order.steadfastTrackingCode ?? undefined,
+    steadfastStatus: order.steadfastStatus ?? undefined,
+    userPhone: order.shippingAddress?.phone ?? undefined,
     canReview: order.status === 'DELIVERED',
     items: order.items.map((item) => ({
       id: item.id,
