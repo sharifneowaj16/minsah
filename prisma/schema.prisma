@@ -459,6 +459,8 @@ model Order {
   @@index([orderNumber])
   @@index([status])
   @@index([createdAt])
+  @@index([steadfastConsignmentId])
+  @@index([steadfastTrackingCode])
 }
 
 model OrderItem {
