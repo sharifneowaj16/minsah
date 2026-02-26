@@ -1,52 +1,81 @@
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/nextauth';
+import prisma from '@/lib/prisma';
 import { OrdersClient } from '@/components/account/orders-client';
-import { Sparkles, Brush, Eye, Package } from 'lucide-react';
 
-// Mock data
-const mockOrders = [
-  {
-    id: '1',
-    orderNumber: 'MB-2024-001',
-    status: 'delivered',
-    paymentStatus: 'paid',
-    items: [
-      { id: '1', productName: 'Premium Face Serum', productImage: <Sparkles className="w-8 h-8 text-purple-400" />, quantity: 2, price: 29.99, totalPrice: 59.98 },
-      { id: '2', productName: 'Luxury Lipstick Set', productImage: <Brush className="w-8 h-8 text-pink-400" />, quantity: 1, price: 24.99, totalPrice: 24.99 }
-    ],
-    total: 90.96,
-    createdAt: new Date('2024-01-15'),
-    estimatedDelivery: new Date('2024-01-20'),
-    canReview: true
-  },
-  {
-    id: '2',
-    orderNumber: 'MB-2024-002',
-    status: 'shipped',
-    paymentStatus: 'paid',
-    items: [
-      { id: '3', productName: 'Organic Face Cream', productImage: <Sparkles className="w-8 h-8 text-green-400" />, quantity: 1, price: 45.99, totalPrice: 45.99 }
-    ],
-    total: 51.98,
-    createdAt: new Date('2024-01-20'),
-    estimatedDelivery: new Date('2024-01-25'),
-    trackingNumber: 'TRK123456789',
-    canReview: false
-  },
-  {
-    id: '3',
-    orderNumber: 'MB-2024-003',
-    status: 'processing',
-    paymentStatus: 'paid',
-    items: [
-      { id: '4', productName: 'Eye Shadow Palette', productImage: <Package className="w-8 h-8 text-yellow-400" />, quantity: 1, price: 35.99, totalPrice: 35.99 },
-      { id: '5', productName: 'Mascara Deluxe', productImage: <Eye className="w-8 h-8 text-blue-400" />, quantity: 2, price: 19.99, totalPrice: 39.98 }
-    ],
-    total: 85.97,
-    createdAt: new Date('2024-01-22'),
-    estimatedDelivery: new Date('2024-01-28'),
-    canReview: false
+async function getUserOrders(userId: string) {
+  const orders = await prisma.order.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      items: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              images: { take: 1, orderBy: { sortOrder: 'asc' } },
+            },
+          },
+        },
+      },
+      shippingAddress: true,
+      payments: { orderBy: { createdAt: 'desc' }, take: 1 },
+    },
+  });
+
+  return orders.map((order) => ({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status.toLowerCase(),
+    paymentStatus: order.paymentStatus.toLowerCase(),
+    paymentMethod: order.paymentMethod || 'cod',
+    total: Number(order.total),
+    subtotal: Number(order.subtotal),
+    shippingCost: Number(order.shippingCost),
+    discountAmount: Number(order.discountAmount),
+    couponCode: order.couponCode,
+    trackingNumber: order.trackingNumber,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    shippedAt: order.shippedAt?.toISOString(),
+    deliveredAt: order.deliveredAt?.toISOString(),
+    canReview: order.status === 'DELIVERED',
+    items: order.items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      productName: item.name,
+      productSlug: item.product?.slug || '',
+      productImage: item.product?.images?.[0]?.url || null,
+      sku: item.sku,
+      quantity: item.quantity,
+      price: Number(item.price),
+      totalPrice: Number(item.total),
+    })),
+    shippingAddress: order.shippingAddress
+      ? {
+          name: order.shippingAddress.fullName || '',
+          street: order.shippingAddress.street1 || '',
+          city: order.shippingAddress.city || '',
+          state: order.shippingAddress.state || '',
+          postalCode: order.shippingAddress.postalCode || '',
+          country: order.shippingAddress.country || 'Bangladesh',
+          phone: order.shippingAddress.phone || '',
+        }
+      : null,
+  }));
+}
+
+export default async function AccountOrdersPage() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    redirect('/login?redirect=/account/orders');
   }
-];
 
-export default async function OrdersPage() {
-  return <OrdersClient initialOrders={mockOrders} />;
+  const orders = await getUserOrders(session.user.id);
+
+  return <OrdersClient orders={orders} />;
 }
