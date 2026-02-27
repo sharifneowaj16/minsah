@@ -261,20 +261,21 @@ export function OrdersClient({ initialOrders }: OrdersClientProps) {
 
               {/* Action Buttons */}
               <div className="px-6 pb-6 flex flex-wrap gap-3">
-                {(order.steadfastTrackingCode || order.trackingNumber) && (
-                  
-                    href={
-                      order.steadfastTrackingCode
-                        ? `/track?code=${order.steadfastTrackingCode}`
-                        : `/track?order=${order.orderNumber}&phone=${order.userPhone || ''}`
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center px-4 py-2 border border-violet-300 bg-violet-50 rounded-lg text-sm font-medium text-violet-700 hover:bg-violet-100 transition"
+                <div className="px-6 pb-6 flex flex-wrap gap-3">
+                  {(order.steadfastTrackingCode || order.trackingNumber) && (
+    
+              href={
+                order.steadfastTrackingCode
+              ? `/track?code=${order.steadfastTrackingCode}`
+              : `/track?order=${order.orderNumber}&phone=${order.userPhone || ''}`
+              }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    <Truck className="w-4 h-4 mr-2" />
-                    Track Delivery
-                  </a>
+                  <Truck className="w-4 h-4 mr-2" />
+                  Track Delivery
+                </a>
                 )}
                 <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
                   <Download className="w-4 h-4 mr-2" />
