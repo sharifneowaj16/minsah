@@ -9,7 +9,7 @@
  *   2. Order number + phone number
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -114,7 +114,7 @@ function TimelineStep({
 
 // ─── Main Page ─────────────────────────────────────────────────────────────
 
-export default function TrackPage() {
+function TrackPageContent() {
   const searchParams = useSearchParams();
 
   const [mode, setMode] = useState<'code' | 'order'>('order');
@@ -452,5 +452,17 @@ export default function TrackPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function TrackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-violet-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    }>
+      <TrackPageContent />
+    </Suspense>
   );
 }
