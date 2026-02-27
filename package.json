@@ -28,7 +28,7 @@
     "reindex": "tsx scripts/reindexProducts.ts",
     "worker": "tsx lib/workers/productWorker.ts",
     "worker:steadfast": "tsx lib/workers/steadfastWorker.ts",
-    "worker:all": "concurrently \"npm run worker\" \"npm run worker:steadfast\"".
+   "worker:all": "concurrently \"npm run worker\" \"npm run worker:steadfast\"",
 
     "search:analytics": "tsx scripts/search-analytics.ts",
     "search:trending": "tsx scripts/seed-trending.ts",
@@ -71,6 +71,7 @@
     "prisma": "^7.4.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
+    "concurrently": "^9.0.0",
     "typescript": "^5"
   },
   "overrides": {
