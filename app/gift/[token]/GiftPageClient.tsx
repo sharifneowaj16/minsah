@@ -4,6 +4,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Gift, Heart, ShoppingBag, ArrowLeft, MapPin, Zap, Check } from 'lucide-react';
 
+interface DeliveryAddress {
+  name: string;
+  phone: string;
+  street: string;
+  city: string;
+  note?: string;
+}
+
 interface GiftData {
   gift: {
     token: string;
@@ -13,12 +21,7 @@ interface GiftData {
     message: string | null;
     status: string;
     expiresAt: string;
-    requesterAddress?: {
-      name: string;
-      phone: string;
-      street: string;
-      city: string;
-    } | null;
+    requesterAddress?: DeliveryAddress | null;
     requesterPhone?: string | null;
   };
   product: {
@@ -43,24 +46,23 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
   const [loading, setLoading] = useState(false);
 
   // For SEND_GIFT — recipient fills address
-  const [form, setForm] = useState({
-  name: '',
-  phone: '',
-  street: '',
-  city: 'ঢাকা',
-  note: '',
-});
+  const [form, setForm] = useState<DeliveryAddress & { note: string }>({
+    name: '',
+    phone: '',
+    street: '',
+    city: 'ঢাকা',
+    note: '',
+  });
 
   const discountPct =
     product.compareAtPrice && product.compareAtPrice > product.price
       ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
       : null;
 
-  // For GET_GIFT — address is pre-filled from requester
+  // For GET_GIFT — address pre-filled from requester
   const prefilledAddress = gift.requesterAddress;
 
   const handleOrder = async () => {
-    // Validate
     if (isSendGift) {
       if (!form.name.trim() || !form.phone.trim() || !form.street.trim()) {
         alert('নাম, ফোন ও ঠিকানা দিন');
@@ -70,29 +72,25 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
 
     setLoading(true);
     try {
-      const deliveryAddress = isSendGift
-        ? { name: form.name, phone: form.phone, address: form.address, city: form.city, note: form.note }
-        : prefilledAddress;
+      const deliveryAddress: DeliveryAddress = isSendGift
+        ? { name: form.name, phone: form.phone, street: form.street, city: form.city, note: form.note }
+        : prefilledAddress!;
 
-      // WhatsApp order message
       const msg = encodeURIComponent(
         isSendGift
-          ? `🎁 GIFT ORDER (Send Gift)\n\nপণ্য: ${product.name}\nমূল্য: ৳${product.price.toLocaleString()}\n\nপ্রাপক: ${deliveryAddress?.name}\nফোন: ${deliveryAddress?.phone}\nঠিকানা: ${deliveryAddress?.address}, ${deliveryAddress?.city}\n\nউপহার: ${gift.senderName} এর পক্ষ থেকে\nGift Token: ${gift.token}`
-          : `🎁 GIFT ORDER (Get Gift)\n\nপণ্য: ${product.name}\nমূল্য: ৳${product.price.toLocaleString()}\n\nPayer: ${gift.recipientName}\nDelivery to: ${deliveryAddress?.name}\nফোন: ${deliveryAddress?.phone}\nঠিকানা: ${deliveryAddress?.address}, ${deliveryAddress?.city}\n\nGift Token: ${gift.token}`
+          ? `🎁 GIFT ORDER (Send Gift)\n\nপণ্য: ${product.name}\nমূল্য: ৳${product.price.toLocaleString()}\n\nপ্রাপক: ${deliveryAddress.name}\nফোন: ${deliveryAddress.phone}\nঠিকানা: ${deliveryAddress.street}, ${deliveryAddress.city}\n\nউপহার: ${gift.senderName} এর পক্ষ থেকে\nGift Token: ${gift.token}`
+          : `🎁 GIFT ORDER (Get Gift)\n\nপণ্য: ${product.name}\nমূল্য: ৳${product.price.toLocaleString()}\n\nPayer: ${gift.recipientName}\nDelivery to: ${deliveryAddress.name}\nফোন: ${deliveryAddress.phone}\nঠিকানা: ${deliveryAddress.street}, ${deliveryAddress.city}\n\nGift Token: ${gift.token}`
       );
 
       window.open(`https://wa.me/${WHATSAPP}?text=${msg}`, '_blank');
-
-      // Mark as ordered
       await fetch(`/api/gift/${gift.token}/order`, { method: 'POST' }).catch(() => {});
-
       setDone(true);
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Done ────────────────────────────────────────────────────
+  // ── Done ──────────────────────────────────────────────────────
   if (done) {
     return (
       <div className="min-h-screen bg-[#FDF8F3] flex flex-col items-center justify-center px-5 text-center">
@@ -113,7 +111,7 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
     );
   }
 
-  // ── Reveal screen ───────────────────────────────────────────
+  // ── Reveal screen ─────────────────────────────────────────────
   if (step === 'reveal') {
     return (
       <div className="min-h-screen bg-[#FDF8F3] flex flex-col">
@@ -179,9 +177,13 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
           {/* Product card */}
           <div className="w-full bg-white rounded-2xl overflow-hidden shadow-sm border border-[#E8D5C0] mb-6">
             <div className="aspect-[4/3] bg-[#F5E9DC] relative">
-              <img src={product.image} alt={product.name}
+              <img
+                src={product.image}
+                alt={product.name}
                 className="w-full h-full object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).src = `https://placehold.co/400x300/F5E9DC/8B5E3C?text=Product`; }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://placehold.co/400x300/F5E9DC/8B5E3C?text=Product';
+                }}
               />
               {discountPct && (
                 <span className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -191,13 +193,19 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
             </div>
             <div className="p-4">
               {product.brand && (
-                <span className="text-xs bg-[#F5E9DC] text-[#6B4226] px-2 py-0.5 rounded-full font-medium">{product.brand}</span>
+                <span className="text-xs bg-[#F5E9DC] text-[#6B4226] px-2 py-0.5 rounded-full font-medium">
+                  {product.brand}
+                </span>
               )}
               <h2 className="text-base font-semibold text-[#1A0D06] mt-2">{product.name}</h2>
               <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-lg font-semibold text-[#1A0D06]">৳{product.price.toLocaleString('bn-BD')}</span>
+                <span className="text-lg font-semibold text-[#1A0D06]">
+                  ৳{product.price.toLocaleString('bn-BD')}
+                </span>
                 {product.compareAtPrice && (
-                  <span className="text-sm text-[#A0856A] line-through">৳{product.compareAtPrice.toLocaleString('bn-BD')}</span>
+                  <span className="text-sm text-[#A0856A] line-through">
+                    ৳{product.compareAtPrice.toLocaleString('bn-BD')}
+                  </span>
                 )}
               </div>
               {isSendGift ? (
@@ -213,7 +221,10 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
             onClick={() => setStep('checkout')}
             className="w-full bg-[#3D1F0E] text-[#F5E6D3] py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 active:scale-95 transition"
           >
-            {isSendGift ? <><Gift size={18} /> গিফটটি গ্রহণ করো</> : <><ShoppingBag size={18} /> Gift করতে চাই</>}
+            {isSendGift
+              ? <><Gift size={18} /> গিফটটি গ্রহণ করো</>
+              : <><ShoppingBag size={18} /> Gift করতে চাই</>
+            }
           </button>
 
           <p className="text-xs text-[#A0856A] mt-3 text-center">
@@ -224,11 +235,13 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
     );
   }
 
-  // ── Checkout screen ─────────────────────────────────────────
+  // ── Checkout screen ───────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#FDF8F3]">
       <div className="bg-[#3D1F0E] px-4 py-3 flex items-center gap-3">
-        <button onClick={() => setStep('reveal')} className="text-[#F5E6D3]"><ArrowLeft size={18} /></button>
+        <button onClick={() => setStep('reveal')} className="text-[#F5E6D3]">
+          <ArrowLeft size={18} />
+        </button>
         <span className="text-[#F5E6D3] text-sm font-semibold">
           {isSendGift ? 'তোমার ডেলিভারি তথ্য দাও' : 'Payment করে Gift দাও'}
         </span>
@@ -238,13 +251,18 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
 
         {/* Mini product recap */}
         <div className="flex gap-3 bg-white rounded-2xl p-3 border border-[#E8D5C0]">
-          <img src={product.image} alt={product.name}
+          <img
+            src={product.image}
+            alt={product.name}
             className="w-14 h-14 rounded-xl object-cover bg-[#F5E9DC]"
             onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.jpg'; }}
           />
           <div>
             <p className="text-xs text-[#8B5E3C]">
-              {isSendGift ? `Gift: ${gift.senderName} এর পক্ষ থেকে` : `Request: ${gift.senderName} এর জন্য`}
+              {isSendGift
+                ? `Gift: ${gift.senderName} এর পক্ষ থেকে`
+                : `Request: ${gift.senderName} এর জন্য`
+              }
             </p>
             <p className="text-sm font-semibold text-[#1A0D06] leading-snug">{product.name}</p>
             <p className="text-sm font-semibold text-[#3D1F0E]">৳{product.price.toLocaleString('bn-BD')}</p>
@@ -257,14 +275,17 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
             <p className="text-xs font-semibold text-[#3D1F0E] uppercase tracking-wide flex items-center gap-1.5">
               <MapPin size={12} /> তোমার ঠিকানা
             </p>
-            {[
-              { key: 'name', label: 'তোমার নাম *', placeholder: 'পুরো নাম', type: 'text' },
-              { key: 'phone', label: 'ফোন নম্বর *', placeholder: '01XXXXXXXXX', type: 'tel' },
-              { key: 'street', label: 'বাড়ির ঠিকানা *', placeholder: 'বাড়ি/রাস্তা', type: 'text' },
-            ].map(({ key, label, placeholder, type }) => (
+            {([
+              { key: 'name',   label: 'তোমার নাম *',       placeholder: 'পুরো নাম',        type: 'text' },
+              { key: 'phone',  label: 'ফোন নম্বর *',        placeholder: '01XXXXXXXXX',     type: 'tel'  },
+              { key: 'street', label: 'বাড়ির ঠিকানা *',    placeholder: 'বাড়ি/রাস্তা',    type: 'text' },
+              { key: 'note',   label: 'বিশেষ নির্দেশনা',   placeholder: 'যেমন: সন্ধ্যায় দিও', type: 'text' },
+            ] as const).map(({ key, label, placeholder, type }) => (
               <div key={key}>
                 <label className="block text-xs font-medium text-[#6B4226] mb-1">{label}</label>
-                <input type={type} value={form[key as keyof typeof form]}
+                <input
+                  type={type}
+                  value={form[key]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   placeholder={placeholder}
                   className="w-full px-3 py-2.5 border border-[#D4B896] rounded-xl text-sm focus:outline-none focus:border-[#3D1F0E] bg-[#FDF8F3]"
@@ -273,8 +294,11 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
             ))}
             <div>
               <label className="block text-xs font-medium text-[#6B4226] mb-1">জেলা</label>
-              <select value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                className="w-full px-3 py-2.5 border border-[#D4B896] rounded-xl text-sm bg-[#FDF8F3]">
+              <select
+                value={form.city}
+                onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                className="w-full px-3 py-2.5 border border-[#D4B896] rounded-xl text-sm bg-[#FDF8F3]"
+              >
                 {['ঢাকা','চট্টগ্রাম','সিলেট','রাজশাহী','খুলনা','বরিশাল','রংপুর','ময়মনসিংহ'].map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -283,7 +307,7 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
           </div>
         )}
 
-        {/* GET_GIFT — address already pre-filled, just confirm */}
+        {/* GET_GIFT — address pre-filled, just confirm */}
         {!isSendGift && prefilledAddress && (
           <div className="bg-white rounded-2xl p-4 border border-[#E8D5C0]">
             <p className="text-xs font-semibold text-[#3D1F0E] uppercase tracking-wide flex items-center gap-1.5 mb-3">
@@ -304,14 +328,24 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
 
       {/* Sticky CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E8D5C0] px-4 py-3 max-w-md mx-auto">
-        <button onClick={handleOrder} disabled={loading}
+        <button
+          onClick={handleOrder}
+          disabled={loading}
           className={`w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition active:scale-95 ${
             loading ? 'bg-[#C4A882] text-white cursor-not-allowed' : 'bg-[#3D1F0E] text-[#F5E6D3]'
-          }`}>
-          {loading
-            ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> অর্ডার হচ্ছে...</span>
-            : <><Zap size={15} /> {isSendGift ? 'Gift Order নিশ্চিত করো' : `Gift করো — ৳${product.price.toLocaleString()}`}</>
-          }
+          }`}
+        >
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              অর্ডার হচ্ছে...
+            </span>
+          ) : (
+            <>
+              <Zap size={15} />
+              {isSendGift ? 'Gift Order নিশ্চিত করো' : `Gift করো — ৳${product.price.toLocaleString()}`}
+            </>
+          )}
         </button>
         <p className="text-xs text-center text-[#A0856A] mt-1.5">
           {isSendGift
