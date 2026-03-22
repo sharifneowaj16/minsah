@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { Truck, ShieldCheck, RotateCcw, Smartphone, ChevronDown, ChevronUp, Package, MapPin, Clock } from 'lucide-react';
 import ProductGallery from './ProductGallery';
+import { GiftRequestButton, ShareButton } from './GiftShareButtons';
 import VariantSelector from './VariantSelector';
 import StickyBottomBar from './StickyBottomBar';
 import ReviewSection from './ReviewSection';
@@ -283,6 +284,22 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
               basePrice={product.price}
               onVariantChange={handleVariantChange}
             />
+
+            {/* Gift + Share buttons */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <GiftRequestButton
+                  productId={product.id}
+                  productName={product.name}
+                  variantId={selectedVariantId}
+                  />
+                
+              </div>
+              <ShareButton
+                productName={product.name}
+                productUrl={productUrl}
+                />
+            </div>
 
             {/* Skin Type */}
             {product.skinType && product.skinType.length > 0 && (
