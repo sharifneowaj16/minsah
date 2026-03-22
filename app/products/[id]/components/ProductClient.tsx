@@ -163,7 +163,7 @@ function StockUrgency({ stock, inStock }: { stock: number; inStock: boolean }) {
 }
 
 // ── Main Component ──────────────────────────────────────────────
-export default function ProductClient({ product, reviews, rating, relatedProducts }: ProductClientProps) {
+export default function ProductClient({ product, reviews, rating, relatedProducts, productUrl }: ProductClientProps) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
     product.variants.length === 1 ? product.variants[0].id : null
   );
