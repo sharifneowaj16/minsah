@@ -1,105 +1,194 @@
-// app/products/[id]/page.tsx
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ShoppingCart, Check, Truck, ShieldCheck, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import React, { useState } from 'react';
+import Image from 'next/image';
+import { motion } from 'framer-motion';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Search, 
+  ShoppingBag, 
+  Star, 
+  Plus, 
+  Minus, 
+  MessageCircle 
+} from 'lucide-react';
 
-export default function ProductPage() {
-  const [selectedImage, setSelectedImage] = useState(0);
+const ProductPage = () => {
   const [quantity, setQuantity] = useState(1);
+  const [selectedSize, setSelectedSize] = useState('30ml');
+  const [selectedVariant, setSelectedVariant] = useState(0);
 
-  // কালার প্যালেট অনুযায়ী স্টাইল (Pink/Gold theme reference)
+  // ব্র্যান্ড কালারগুলো (আপনার প্রোভাইড করা ডাটা অনুযায়ী)
+  const colors = {
+    primaryDark: "#64320D",
+    secondaryMedium: "#8E6545",
+    accentCream: "#FFE6D2",
+    darkBrown: "#421C00",
+    lightCream: "#FFF5EB"
+  };
+
+  const variants = [
+    { id: 0, img: "/images/product-main.jpg", name: "Hyaluronic Acid" },
+    { id: 1, img: "/images/product-v1.jpg", name: "Vitamin C" },
+    { id: 2, img: "/images/product-v2.jpg", name: "Retinol" }
+  ];
+
+  const reviews = [
+    { id: 1, name: "Eanane", text: "My factor roomment. But I said it is developed.", stars: 5 },
+    { id: 2, name: "Ratram d.", text: "Werely comment. I recommend great coaching.", stars: 5 }
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 font-sans">
-      {/* Back Button */}
-      <Link href="/shop" className="flex items-center text-sm text-gray-600 mb-6 hover:text-pink-600 transition">
-        <ArrowLeft size={16} className="mr-2" /> Back to Shop
-      </Link>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-        {/* Product Images Section */}
-        <div className="space-y-4">
-          <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-200">
-             {/* Main Image */}
-             <img 
-               src="/api/placeholder/600/600" 
-               alt="Product" 
-               className="w-full h-full object-cover"
-             />
+    <div className="min-h-screen pb-10" style={{ backgroundColor: colors.accentCream }}>
+      {/* Header */}
+      <header className="p-4 flex justify-between items-center bg-[#64320D] text-white">
+        <div className="flex items-center gap-3">
+          <ChevronLeft className="w-6 h-6" />
+          <h1 className="font-bold tracking-wider text-sm">LUMINSKIN</h1>
+        </div>
+        <div className="flex gap-4">
+          <Search className="w-5 h-5" />
+          <div className="relative">
+            <ShoppingBag className="w-5 h-5" />
+            <span className="absolute -top-1 -right-1 bg-orange-400 text-[10px] rounded-full w-4 h-4 flex items-center justify-center">1</span>
           </div>
-          {/* Thumbnails */}
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {[1, 2, 3, 4].map((_, i) => (
+        </div>
+      </header>
+
+      <div className="max-w-md mx-auto p-4 flex flex-col gap-6">
+        
+        {/* Main Product Image Section with Multi-Image View logic */}
+        <section className="relative">
+          <div className="bg-white rounded-2xl overflow-hidden shadow-sm aspect-square relative">
+            {/* Placeholder for Product Image */}
+            <div className="w-full h-full bg-[#f3f3f3] flex items-center justify-center text-gray-400">
+              [Product Image]
+            </div>
+            <div className="absolute top-1/2 left-2 -translate-y-1/2 bg-white/50 p-1 rounded-full"><ChevronLeft size={20}/></div>
+            <div className="absolute top-1/2 right-2 -translate-y-1/2 bg-white/50 p-1 rounded-full"><ChevronRight size={20}/></div>
+          </div>
+        </section>
+
+        {/* Product Info */}
+        <section>
+          <h2 className="text-xl font-bold uppercase leading-tight" style={{ color: colors.darkBrown }}>
+            LUMINSKIN HYALURONIC ACID SERUM
+          </h2>
+          <p className="text-sm opacity-80" style={{ color: colors.darkBrown }}>Deep Hydration & Radiant Glow</p>
+          
+          <div className="flex items-center gap-4 mt-3">
+            <span className="text-2xl font-bold" style={{ color: colors.darkBrown }}>$49.00</span>
+            <div className="flex items-center gap-1">
+              {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="#D4A017" stroke="none" />)}
+              <span className="text-xs font-semibold ml-1">4.8 | 30ml</span>
+            </div>
+          </div>
+        </section>
+
+        {/* How to Use Section */}
+        <section className="flex gap-4 items-start">
+          <div className="w-24 h-24 rounded-t-2xl rounded-b-md overflow-hidden flex-shrink-0 bg-gray-200">
+             {/* Box with top round */}
+          </div>
+          <div>
+            <h3 className="font-bold text-xs uppercase" style={{ color: colors.darkBrown }}>How to Use</h3>
+            <p className="text-[11px] mt-1 leading-relaxed" style={{ color: colors.darkBrown }}>
+              Apply on the hyaluronic and serum. Step the face clean then, steps will the cheek.
+            </p>
+          </div>
+        </section>
+
+        {/* Variant Section */}
+        <section>
+          <h3 className="font-bold text-xs uppercase mb-2" style={{ color: colors.darkBrown }}>
+            Variant Name: <span className="font-normal opacity-70">{variants[selectedVariant].name}</span>
+          </h3>
+          <div className="flex gap-3">
+            {variants.map((v, i) => (
               <button 
-                key={i}
-                onClick={() => setSelectedImage(i)}
-                className={`w-20 h-20 rounded-lg border-2 overflow-hidden ${selectedImage === i ? 'border-pink-500' : 'border-transparent'}`}
+                key={v.id}
+                onClick={() => setSelectedVariant(i)}
+                className={`w-12 h-12 rounded-lg border-2 overflow-hidden ${selectedVariant === i ? 'border-[#8E6545]' : 'border-transparent'}`}
               >
-                <img src="/api/placeholder/80/80" alt="thumb" className="w-full h-full object-cover" />
+                <div className="w-full h-full bg-gray-100" />
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Product Info Section */}
-        <div className="flex flex-col space-y-6">
+        {/* Size & Quantity */}
+        <div className="flex justify-between items-end">
           <div>
-            <span className="text-pink-600 font-semibold tracking-wide uppercase text-xs">New Arrival</span>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mt-2">Luxurious Glow Serum</h1>
-            <div className="flex items-center mt-3 space-x-2">
-              <div className="flex text-yellow-400">★★★★★</div>
-              <span className="text-gray-500 text-sm">(48 Reviews)</span>
+            <h3 className="font-bold text-xs uppercase mb-2" style={{ color: colors.darkBrown }}>Select Size:</h3>
+            <div className="flex gap-2">
+              {['30ml', '50ml'].map(size => (
+                <button 
+                  key={size}
+                  onClick={() => setSelectedSize(size)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-medium border ${selectedSize === size ? 'bg-[#64320D] text-white' : 'bg-white border-gray-200'}`}
+                >
+                  {size} {selectedSize === size && '(Selected)'}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex items-baseline space-x-3">
-            <span className="text-3xl font-bold text-gray-900">৳১,২০০</span>
-            <span className="text-xl text-gray-400 line-through">৳১,৫০০</span>
-            <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded text-sm font-bold">২০% ছাড়</span>
-          </div>
-
-          <p className="text-gray-600 leading-relaxed">
-            আপনার ত্বকের উজ্জ্বলতা বাড়াতে এবং সতেজ রাখতে আমাদের এই বিশেষ সিরামটি অত্যন্ত কার্যকরী। এটি সব ধরণের ত্বকের জন্য উপযোগী।
-          </p>
-
-          {/* Quantity and Actions */}
-          <div className="space-y-4 pt-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center border border-gray-300 rounded-full px-4 py-2">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="text-xl px-2">-</button>
-                <span className="px-4 font-medium">{quantity}</span>
-                <button onClick={() => setQuantity(quantity + 1)} className="text-xl px-2">+</button>
-              </div>
-              <p className="text-green-600 flex items-center text-sm font-medium">
-                <Check size={16} className="mr-1" /> In Stock
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button className="flex-1 bg-pink-600 text-white py-4 rounded-full font-bold flex items-center justify-center hover:bg-pink-700 transition shadow-lg shadow-pink-200">
-                <ShoppingCart className="mr-2" size={20} /> Add to Cart
-              </button>
-              <button className="flex-1 bg-gray-900 text-white py-4 rounded-full font-bold hover:bg-black transition">
-                Buy Now
-              </button>
-            </div>
-          </div>
-
-          {/* Trust Badges */}
-          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-100">
-            <div className="flex items-center text-sm text-gray-600">
-              <Truck size={18} className="mr-2 text-pink-500" /> সারা দেশে ডেলিভারি
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <ShieldCheck size={18} className="mr-2 text-pink-500" /> ১০০% অরিজিনাল প্রোডাক্ট
-            </div>
+          <div className="text-right">
+             <h3 className="font-bold text-xs uppercase mb-2" style={{ color: colors.darkBrown }}>Quantity:</h3>
+             <div className="flex items-center bg-[#E5D1C1] rounded-lg p-1">
+                <button onClick={() => setQuantity(q => Math.max(1, q-1))} className="p-1"><Minus size={14}/></button>
+                <span className="px-3 font-bold text-sm">{quantity}</span>
+                <button onClick={() => setQuantity(q => q+1)} className="p-1"><Plus size={14}/></button>
+             </div>
           </div>
         </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 mt-4">
+          <button className="flex-1 py-4 rounded-xl font-bold text-xs bg-[#64320D] text-white uppercase tracking-widest shadow-lg">
+            Add to Bag
+          </button>
+          <button className="flex-1 py-4 rounded-xl font-bold text-xs bg-white text-[#64320D] border border-[#64320D] uppercase tracking-widest shadow-sm">
+            Buy Now
+          </button>
+        </div>
+
+        {/* Customer Reviews Carousel */}
+        <section className="mt-4">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-bold text-xs uppercase" style={{ color: colors.darkBrown }}>Customer Reviews</h3>
+            <div className="flex gap-2">
+              <ChevronLeft size={16} className="opacity-50" />
+              <ChevronRight size={16} />
+            </div>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+            {reviews.map(review => (
+              <div key={review.id} className="min-w-[200px] bg-white p-4 rounded-2xl shadow-sm border border-[#FFE6D2]">
+                <div className="flex gap-0.5 mb-2">
+                  {[...Array(review.stars)].map((_, i) => <Star key={i} size={10} fill="#D4A017" stroke="none" />)}
+                </div>
+                <p className="text-[10px] italic mb-2">"{review.text}"</p>
+                <p className="text-[10px] font-bold opacity-60">— {review.name}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
+
+      {/* Floating WhatsApp Button */}
+      <a 
+        href="https://wa.me/yournumber" 
+        className="fixed bottom-6 right-6 bg-[#25D366] text-white p-3 rounded-full shadow-2xl z-50 animate-bounce"
+      >
+        <MessageCircle size={24} />
+      </a>
     </div>
   );
-}
+};
+
+export default ProductPage;
 // 'use client';
 
 // import { useState, useEffect } from 'react';
