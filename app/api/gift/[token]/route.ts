@@ -32,7 +32,6 @@ export async function GET(
     }
 
     if (gift.expiresAt < new Date()) {
-      // Mark expired
       await prisma.giftRequest.update({
         where: { token },
         data: { status: 'EXPIRED' },
@@ -40,7 +39,6 @@ export async function GET(
       return NextResponse.json({ error: 'Gift link মেয়াদ শেষ' }, { status: 410 });
     }
 
-    // Mark as viewed on first open
     if (gift.status === 'PENDING') {
       await prisma.giftRequest.update({
         where: { token },
@@ -53,29 +51,33 @@ export async function GET(
 
     return NextResponse.json({
       gift: {
-        token: gift.token,
-        senderName: gift.senderName,
-        recipientName: gift.recipientName,
-        message: gift.message,
-        status: gift.status,
-        expiresAt: gift.expiresAt.toISOString(),
+        token:            gift.token,
+        giftType:         gift.giftType,          // 'SEND_GIFT' | 'GET_GIFT'
+        senderName:       gift.senderName,
+        recipientName:    gift.recipientName,
+        message:          gift.message,
+        status:           gift.status,
+        expiresAt:        gift.expiresAt.toISOString(),
+        // GET_GIFT only
+        requesterAddress: gift.requesterAddress,  // pre-filled address
+        requesterPhone:   gift.requesterPhone,
       },
       product: {
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        price: Number(p.price),
+        id:            p.id,
+        name:          p.name,
+        slug:          p.slug,
+        price:         Number(p.price),
         compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : null,
-        image: sortedImages[0]?.url || '',
-        images: sortedImages.map((i) => i.url),
-        brand: p.brand?.name || '',
-        category: p.category?.name || '',
-        inStock: p.quantity > 0 && p.isActive,
-        variants: p.variants.map((v) => ({
-          id: v.id,
-          name: v.name,
-          price: v.price ? Number(v.price) : Number(p.price),
-          stock: v.quantity,
+        image:         sortedImages[0]?.url || '',
+        images:        sortedImages.map((i) => i.url),
+        brand:         p.brand?.name || '',
+        category:      p.category?.name || '',
+        inStock:       p.quantity > 0 && p.isActive,
+        variants:      p.variants.map((v) => ({
+          id:         v.id,
+          name:       v.name,
+          price:      v.price ? Number(v.price) : Number(p.price),
+          stock:      v.quantity,
           attributes: v.attributes,
         })),
       },
