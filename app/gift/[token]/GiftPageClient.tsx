@@ -44,12 +44,12 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
 
   // For SEND_GIFT — recipient fills address
   const [form, setForm] = useState({
-    name: '',
-    phone: '',
-    address: '',
-    city: 'ঢাকা',
-    note: '',
-  });
+  name: '',
+  phone: '',
+  street: '',
+  city: 'ঢাকা',
+  note: '',
+});
 
   const discountPct =
     product.compareAtPrice && product.compareAtPrice > product.price
@@ -260,7 +260,7 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
             {[
               { key: 'name', label: 'তোমার নাম *', placeholder: 'পুরো নাম', type: 'text' },
               { key: 'phone', label: 'ফোন নম্বর *', placeholder: '01XXXXXXXXX', type: 'tel' },
-              { key: 'address', label: 'বাড়ির ঠিকানা *', placeholder: 'বাড়ি/রাস্তা', type: 'text' },
+              { key: 'street', label: 'বাড়ির ঠিকানা *', placeholder: 'বাড়ি/রাস্তা', type: 'text' },
             ].map(({ key, label, placeholder, type }) => (
               <div key={key}>
                 <label className="block text-xs font-medium text-[#6B4226] mb-1">{label}</label>
