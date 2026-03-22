@@ -62,7 +62,7 @@ export default function GiftPageClient({ data }: { data: GiftData }) {
   const handleOrder = async () => {
     // Validate
     if (isSendGift) {
-      if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
+      if (!form.name.trim() || !form.phone.trim() || !form.street.trim()) {
         alert('নাম, ফোন ও ঠিকানা দিন');
         return;
       }
