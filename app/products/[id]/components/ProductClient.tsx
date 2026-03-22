@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Truck, ShieldCheck, RotateCcw, Smartphone, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { Truck, ShieldCheck, RotateCcw, Smartphone, ChevronDown, ChevronUp, Package, MapPin, Clock } from 'lucide-react';
 import ProductGallery from './ProductGallery';
 import VariantSelector from './VariantSelector';
 import StickyBottomBar from './StickyBottomBar';
@@ -55,6 +55,7 @@ interface ProductClientProps {
     sku: string;
     stock: number;
     category: string;
+    categorySlug?: string;
     brand: string;
     rating: number;
     reviews: number;
@@ -73,6 +74,94 @@ interface ProductClientProps {
 
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '8801700000000';
 
+// ── Delivery Estimate ───────────────────────────────────────────
+function DeliveryEstimate() {
+  const now = new Date();
+  const hour = now.getHours();
+  const isWeekend = now.getDay() === 5 || now.getDay() === 6; // Fri/Sat BD weekend
+
+  // Cut-off: order before 3pm → next day Dhaka, +1 day outside
+  const dhakaLabel = hour < 15 && !isWeekend ? 'আগামীকাল' : 'পরশু';
+  const outsideLabel = hour < 15 && !isWeekend ? '২-৩ দিনে' : '৩-৪ দিনে';
+
+  return (
+    <div className="bg-[#F5E9DC] rounded-xl p-3 space-y-2">
+      <p className="text-xs font-semibold text-[#3D1F0E] flex items-center gap-1.5">
+        <Truck size={12} />
+        ডেলিভারি সময়
+      </p>
+      <div className="flex gap-3">
+        <div className="flex items-start gap-1.5 flex-1">
+          <MapPin size={11} className="text-[#8B5E3C] mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-[#1A0D06]">ঢাকায়</p>
+            <p className="text-xs text-green-600 font-medium">{dhakaLabel} পাবেন</p>
+            <p className="text-[10px] text-[#8B5E3C]">বিনামূল্যে ডেলিভারি</p>
+          </div>
+        </div>
+        <div className="w-px bg-[#E8D5C0]" />
+        <div className="flex items-start gap-1.5 flex-1">
+          <MapPin size={11} className="text-[#8B5E3C] mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-[#1A0D06]">সারাদেশে</p>
+            <p className="text-xs text-[#3D1F0E] font-medium">{outsideLabel}</p>
+            <p className="text-[10px] text-[#8B5E3C]">৳১২০ ডেলিভারি চার্জ</p>
+          </div>
+        </div>
+      </div>
+      {hour < 15 && !isWeekend && (
+        <div className="flex items-center gap-1.5 bg-amber-50 rounded-lg px-2.5 py-1.5 border border-amber-200">
+          <Clock size={10} className="text-amber-600 flex-shrink-0" />
+          <p className="text-[10px] text-amber-700 font-medium">
+            আজ বিকেল ৩টার আগে অর্ডার করলে আগামীকাল পাবেন
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Stock Urgency ───────────────────────────────────────────────
+function StockUrgency({ stock, inStock }: { stock: number; inStock: boolean }) {
+  if (!inStock) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-red-500" />
+        <span className="text-sm font-medium text-red-600">স্টক শেষ</span>
+      </div>
+    );
+  }
+
+  if (stock <= 10) {
+    const pct = Math.round((stock / 10) * 100);
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-red-600">
+            ⚠️ মাত্র {stock}টি বাকি!
+          </span>
+          <span className="text-[10px] text-red-400 font-medium">দ্রুত শেষ হচ্ছে</span>
+        </div>
+        <div className="h-1.5 bg-red-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-red-500 rounded-full transition-all duration-700"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-[10px] text-red-400">এখনই অর্ডার করুন, মিস করবেন না!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+      <span className="text-sm font-medium text-green-600">স্টকে আছে</span>
+    </div>
+  );
+}
+
+// ── Main Component ──────────────────────────────────────────────
 export default function ProductClient({ product, reviews, rating, relatedProducts }: ProductClientProps) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
     product.variants.length === 1 ? product.variants[0].id : null
@@ -94,7 +183,6 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
   }, []);
 
   const handleAddToCart = useCallback(() => {
-    // CartContext integration
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2500);
   }, []);
@@ -103,11 +191,10 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
 
   return (
     <>
-      {/* Main layout */}
       <div className="max-w-2xl mx-auto lg:max-w-6xl">
         <div className="lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
 
-          {/* LEFT — Gallery (sticky on desktop) */}
+          {/* LEFT — Gallery */}
           <div className="lg:sticky lg:top-20">
             <ProductGallery
               images={product.images}
@@ -117,12 +204,12 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
             />
           </div>
 
-          {/* RIGHT — Product Info */}
+          {/* RIGHT — Info */}
           <div className="px-4 pt-4 pb-36 lg:pt-0 lg:px-0 lg:pb-8 space-y-5">
 
-            {/* Brand + Category */}
+            {/* Brand + Category tags */}
             {(product.brand || product.category) && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {product.brand && (
                   <span className="text-xs bg-[#F5E9DC] text-[#6B4226] px-2.5 py-1 rounded-full font-medium">
                     {product.brand}
@@ -136,13 +223,11 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
               </div>
             )}
 
-            {/* Name */}
+            {/* Name + Stars */}
             <div>
               <h1 className="text-xl md:text-2xl lg:text-3xl font-semibold text-[#1A0D06] leading-tight">
                 {product.name}
               </h1>
-
-              {/* Stars */}
               {rating.total > 0 && (
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex gap-0.5">
@@ -178,20 +263,17 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
               )}
             </div>
 
-            {/* Stock status */}
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${product.inStock ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className={`text-sm font-medium ${product.inStock ? 'text-green-600' : 'text-red-600'}`}>
-                {product.inStock ? `স্টকে আছে (${product.stock}টি)` : 'স্টক শেষ'}
-              </span>
-            </div>
+            {/* Stock urgency */}
+            <StockUrgency stock={product.stock} inStock={product.inStock} />
 
-            {/* Description */}
+            {/* Delivery estimate */}
+            {product.inStock && <DeliveryEstimate />}
+
+            {/* Short description */}
             {product.shortDescription && (
               <p className="text-sm text-[#4A2C1A] leading-relaxed">{product.shortDescription}</p>
             )}
 
-            {/* Divider */}
             <div className="h-px bg-[#E8D5C0]" />
 
             {/* Variant Selector */}
@@ -207,10 +289,7 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
                 <p className="text-xs font-semibold text-[#3D1F0E] uppercase tracking-wide mb-2">উপযুক্ত ত্বকের ধরন</p>
                 <div className="flex flex-wrap gap-2">
                   {product.skinType.map((type) => (
-                    <span
-                      key={type}
-                      className="px-3 py-1 bg-[#F5E9DC] text-[#6B4226] text-xs font-medium rounded-full"
-                    >
+                    <span key={type} className="px-3 py-1 bg-[#F5E9DC] text-[#6B4226] text-xs font-medium rounded-full">
                       {type}
                     </span>
                   ))}
@@ -218,7 +297,6 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
               </div>
             )}
 
-            {/* Divider */}
             <div className="h-px bg-[#E8D5C0]" />
 
             {/* Trust Badges */}
@@ -229,10 +307,7 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
                 { icon: RotateCcw, label: '৭ দিন', sub: 'রিটার্ন' },
                 { icon: Smartphone, label: 'bKash / COD', sub: 'পেমেন্ট' },
               ].map(({ icon: Icon, label, sub }) => (
-                <div
-                  key={label}
-                  className="flex flex-col items-center text-center p-2.5 bg-[#F5E9DC] rounded-xl"
-                >
+                <div key={label} className="flex flex-col items-center text-center p-2.5 bg-[#F5E9DC] rounded-xl">
                   <Icon size={16} className="text-[#3D1F0E] mb-1" />
                   <p className="text-[10px] font-semibold text-[#1A0D06] leading-tight">{label}</p>
                   <p className="text-[9px] text-[#8B5E3C] mt-0.5">{sub}</p>
@@ -273,7 +348,7 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
               </div>
             )}
 
-            {/* Reviews Section */}
+            {/* Reviews */}
             {rating.total > 0 && (
               <div>
                 <p className="text-xs font-semibold text-[#3D1F0E] uppercase tracking-wide mb-3">কাস্টমার রিভিউ</p>
@@ -324,11 +399,12 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
                 </div>
               </div>
             )}
+
           </div>
         </div>
       </div>
 
-      {/* Sticky Bottom Bar */}
+      {/* Sticky Bottom Bar + Floating WhatsApp */}
       <StickyBottomBar
         productId={product.id}
         productName={product.name}
