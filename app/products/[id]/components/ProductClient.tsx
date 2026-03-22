@@ -70,6 +70,7 @@ interface ProductClientProps {
   reviews: Review[];
   rating: RatingData;
   relatedProducts: RelatedProduct[];
+  productUrl: string;
 }
 
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '8801700000000';
