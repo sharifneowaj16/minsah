@@ -327,6 +327,7 @@ model Product {
   reviews         Review[]
   searchClicks    SearchClickEvent[]
   searchMetrics   SearchClickMetrics[]
+giftRequests    GiftRequest[]
 
   @@index([slug])
   @@index([sku])
@@ -735,6 +736,13 @@ enum ReturnStatus {
   COMPLETED
 }
 
+enum GiftStatus {
+PENDING
+VIEWED
+ORDERED
+EXPIRED
+}
+
 // ==========================================
 // Search Click Tracking
 // ==========================================
@@ -816,3 +824,48 @@ model SocialMessage {
   @@index([isRead])
   @@index([timestamp])
 }
+
+// ─────────────────────────────────────────────────────────────
+// এই block টা prisma/schema.prisma-এ Product model-এর নিচে যোগ করো
+// ─────────────────────────────────────────────────────────────
+
+// schema.prisma-এ enum section-এ এটা যোগ করো:
+// enum GiftStatus {
+//   PENDING
+//   VIEWED
+//   ORDERED
+//   EXPIRED
+// }
+
+// এবং Product model-এ relations section-এ:
+// giftRequests GiftRequest[]
+
+model GiftRequest {
+  id            String      @id @default(cuid())
+  token         String      @unique
+  productId     String
+  variantId     String?
+  senderName    String
+  recipientName String
+  message       String?     @db.Text
+  status        GiftStatus  @default(PENDING)
+  viewedAt      DateTime?
+  orderedAt     DateTime?
+  expiresAt     DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([productId])
+  @@index([status])
+}
+
+enum GiftStatus {
+  PENDING
+  VIEWED
+  ORDERED
+  EXPIRED
+}
+
