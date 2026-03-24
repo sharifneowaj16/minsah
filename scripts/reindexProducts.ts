@@ -14,17 +14,12 @@
  *   npm run reindex
  *   — or —
  *   npx tsx scripts/reindexProducts.ts
- *
- * Environment variables required:
- *   DATABASE_URL        PostgreSQL connection string
- *   ELASTICSEARCH_URL   e.g. http://elasticsearch:9200
- *   ELASTIC_PASSWORD    Elasticsearch password (if auth enabled)
  */
 
 import 'dotenv/config';
 
 import prisma from '../lib/prisma';
-import { esClient, PRODUCT_INDEX, testConnection } from '../lib/elasticsearch';
+import { esClient, PRODUCT_INDEX, testConnection, productIndexMapping } from '../lib/elasticsearch';
 import { transformProductToES } from '../lib/search/productTransformer';
 
 const BATCH_SIZE = 500;
@@ -37,14 +32,20 @@ const productInclude = {
 } as const;
 
 async function ensureIndex(): Promise<void> {
+  // Always delete and recreate to ensure clean mapping
   const exists = await esClient.indices.exists({ index: PRODUCT_INDEX });
-  if (!exists) {
-    console.log(`Creating index "${PRODUCT_INDEX}"…`);
-    // Use the existing init script logic – or create a minimal index here
-    // so this script is self-contained even if init-elasticsearch hasn't run yet.
-    await esClient.indices.create({ index: PRODUCT_INDEX });
-    console.log(`Index "${PRODUCT_INDEX}" created`);
+  if (exists) {
+    console.log(`Deleting existing index "${PRODUCT_INDEX}"…`);
+    await esClient.indices.delete({ index: PRODUCT_INDEX });
   }
+
+  console.log(`Creating index "${PRODUCT_INDEX}" with full mapping…`);
+  await esClient.indices.create({
+    index: PRODUCT_INDEX,
+    settings: productIndexMapping.settings,
+    mappings: productIndexMapping.mappings,
+  });
+  console.log(`✅ Index "${PRODUCT_INDEX}" created with beauty_search analyzer + full mapping`);
 }
 
 async function reindex(): Promise<void> {
@@ -58,9 +59,10 @@ async function reindex(): Promise<void> {
     process.exit(1);
   }
 
+  // 2. Recreate index with correct mapping
   await ensureIndex();
 
-  // 2. Count products
+  // 3. Count products
   const total = await prisma.product.count();
   console.log(`Total products in database: ${total}\n`);
 
@@ -73,7 +75,7 @@ async function reindex(): Promise<void> {
   let indexed = 0;
   let errors = 0;
 
-  // 3. Batch loop
+  // 4. Batch loop
   while (skip < total) {
     const products = await prisma.product.findMany({
       skip,
@@ -90,7 +92,7 @@ async function reindex(): Promise<void> {
 
     const { errors: bulkErrors, items } = await esClient.bulk({
       operations,
-      refresh: false, // refresh once at the very end
+      refresh: false,
     });
 
     if (bulkErrors) {
@@ -109,7 +111,7 @@ async function reindex(): Promise<void> {
     skip += BATCH_SIZE;
   }
 
-  // 4. Refresh once so all docs become searchable
+  // 5. Refresh once so all docs become searchable
   await esClient.indices.refresh({ index: PRODUCT_INDEX });
 
   console.log('\n=== Reindex complete ===');
