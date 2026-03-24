@@ -127,7 +127,7 @@ async function fetchProductSuggestions(query: string, limit: number) {
         product_suggest: {
           prefix: query,
           completion: {
-            field: 'name.suggest',
+            field: 'suggest',
             size: limit,
             skip_duplicates: true,
           }
