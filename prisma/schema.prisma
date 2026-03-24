@@ -445,11 +445,15 @@ model Order {
   shippedAt   DateTime?
   deliveredAt DateTime?
   cancelledAt DateTime?
+  isGiftOrder  Boolean @default(false)
+  giftToken    String?
+
 
   user     User        @relation(fields: [userId], references: [id])
   items    OrderItem[]
   payments Payment[]
   returns  Return[]
+  notifications AdminNotification[]
 
   @@index([userId])
   @@index([orderNumber])
@@ -457,6 +461,8 @@ model Order {
   @@index([createdAt])
   @@index([steadfastConsignmentId])
   @@index([steadfastTrackingCode])
+  @@index([isGiftOrder])
+  @@index([giftToken])
 }
 
 model OrderItem {
@@ -793,6 +799,27 @@ model GiftRequest {
   @@index([giftType])
   @@index([senderId])
   @@index([recipientId])
+}
+
+// ==========================================
+// Admin Notifications
+// ==========================================
+
+model AdminNotification {
+  id        String   @id @default(cuid())
+  type      String   @default("ORDER")
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@index([orderId])
 }
 
 // ==========================================
