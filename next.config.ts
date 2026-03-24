@@ -52,7 +52,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
     // ✅ Enable instrumentation hook for auto-starting workers on server boot
-    instrumentationHook: true,
   },
 
   // Headers configuration
