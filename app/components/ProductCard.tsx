@@ -1,7 +1,8 @@
-﻿import Link from 'next/link';
+import Link from 'next/link';
 import Image from 'next/image';
 import { Package } from 'lucide-react';
 import { formatPrice } from '@/utils/currency';
+
 interface ProductCardProps {
   id: string;
   name: string;
@@ -12,9 +13,18 @@ interface ProductCardProps {
   category?: string;
 }
 
-export default function ProductCard({ id, name, price, originalPrice, image, category }: ProductCardProps) {
+export default function ProductCard({ 
+  id, 
+  name, 
+  slug, 
+  price, 
+  originalPrice, 
+  image, 
+  category 
+}: ProductCardProps) {
   // Price is already in BDT
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  
   return (
     <Link href={`/products/${slug || id}`} className="group">
       <div className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow overflow-hidden">
@@ -49,4 +59,3 @@ export default function ProductCard({ id, name, price, originalPrice, image, cat
     </Link>
   );
 }
-
