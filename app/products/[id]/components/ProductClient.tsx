@@ -387,7 +387,7 @@ export default function ProductClient({ product, reviews, rating, relatedProduct
                     return (
                       <a
                         key={rp.id}
-                        href={`/products/${rp.id}`}
+                        href={`/products/${rp.slug}`}
                         className="block bg-[#F5E9DC] rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
                       >
                         <div className="aspect-square relative">
