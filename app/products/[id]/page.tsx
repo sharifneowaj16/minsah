@@ -9,12 +9,28 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-async function fetchProduct(id: string) {
+async function fetchProduct(idOrSlug: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const res = await fetch(`${baseUrl}/api/products/${id}`, {
+  // আগে ID দিয়ে try করো
+  let res = await fetch(`${baseUrl}/api/products/${idOrSlug}`, {
     next: { revalidate: 60 },
   });
-  if (!res.ok) return null;
+  // না পেলে slug দিয়ে try করো
+  if (!res.ok) {
+    res = await fetch(`${baseUrl}/api/products?slug=${idOrSlug}&limit=1`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const product = data.products?.[0];
+    if (!product) return null;
+    // product পেলে full data আনো
+    const fullRes = await fetch(`${baseUrl}/api/products/${product.id}`, {
+      next: { revalidate: 60 },
+    });
+    if (!fullRes.ok) return null;
+    return fullRes.json();
+  }
   return res.json();
 }
 
@@ -42,7 +58,7 @@ export default async function ProductPage({ params }: PageProps) {
 
   const { product, reviews, rating, relatedProducts } = data;
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://minsahbeauty.cloud';
-  const productUrl = `${baseUrl}/products/${product.id}`;
+  const productUrl = `${baseUrl}/products/${product.slug}`;
 
   return (
     <div className="min-h-screen bg-[#FDF8F3]">
