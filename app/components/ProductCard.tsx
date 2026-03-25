@@ -5,6 +5,7 @@ import { formatPrice } from '@/utils/currency';
 interface ProductCardProps {
   id: string;
   name: string;
+  slug?: string;
   price: number;
   originalPrice?: number;
   image: string;
@@ -15,7 +16,7 @@ export default function ProductCard({ id, name, price, originalPrice, image, cat
   // Price is already in BDT
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   return (
-    <Link href={`/products/${id}`} className="group">
+    <Link href={`/products/${slug || id}`} className="group">
       <div className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow overflow-hidden">
         <div className="relative aspect-square bg-gray-100 overflow-hidden">
           <div className="w-full h-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center">
