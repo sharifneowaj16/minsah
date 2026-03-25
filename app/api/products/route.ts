@@ -101,10 +101,15 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || 'createdAt';
     const order = (searchParams.get('order') || 'desc') as 'asc' | 'desc';
     const activeOnly = searchParams.get('activeOnly') !== 'false';
+    const slug = searchParams.get('slug');
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: Record<string, any> = {};
     if (activeOnly) where.isActive = true;
+    
+    // Slug filter added here
+    if (slug) where.slug = slug;
+
     if (category) {
       where.category = {
         OR: [
