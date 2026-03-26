@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Package } from 'lucide-react';
 import { formatPrice } from '@/utils/currency';
