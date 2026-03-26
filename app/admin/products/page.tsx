@@ -18,6 +18,7 @@ import { formatPrice } from '@/utils/currency';
 
 interface ApiProduct {
   id: string;
+  slug: string;
   name: string;
   category: string;
   brand: string;
@@ -52,12 +53,12 @@ const categories = [
 ];
 
 const sortOptions = [
-  { value: 'name', label: 'Name' },
-  { value: 'price_low', label: 'Price: Low to High' },
+  { value: 'name',       label: 'Name' },
+  { value: 'price_low',  label: 'Price: Low to High' },
   { value: 'price_high', label: 'Price: High to Low' },
-  { value: 'stock', label: 'Stock Level' },
-  { value: 'created', label: 'Date Created' },
-  { value: 'rating', label: 'Rating' },
+  { value: 'stock',      label: 'Stock Level' },
+  { value: 'created',    label: 'Date Created' },
+  { value: 'rating',     label: 'Rating' },
 ];
 
 export default function ProductsPage() {
@@ -66,10 +67,10 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<ProductFilters>({
-    search: '',
+    search:   '',
     category: 'All Categories',
-    status: '',
-    sortBy: 'created',
+    status:   '',
+    sortBy:   'created',
   });
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -130,42 +131,30 @@ export default function ProductsPage() {
     })
     .sort((a, b) => {
       switch (filters.sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'price_low':
-          return a.price - b.price;
-        case 'price_high':
-          return b.price - a.price;
-        case 'stock':
-          return b.stock - a.stock;
-        case 'rating':
-          return b.rating - a.rating;
+        case 'name':       return a.name.localeCompare(b.name);
+        case 'price_low':  return a.price - b.price;
+        case 'price_high': return b.price - a.price;
+        case 'stock':      return b.stock - a.stock;
+        case 'rating':     return b.rating - a.rating;
         case 'created':
-        default:
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        default:           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
     });
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedProducts(filteredProducts.map((p) => p.id));
-    } else {
-      setSelectedProducts([]);
-    }
+    setSelectedProducts(checked ? filteredProducts.map((p) => p.id) : []);
   };
 
   const handleSelectProduct = (productId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedProducts([...selectedProducts, productId]);
-    } else {
-      setSelectedProducts(selectedProducts.filter((id) => id !== productId));
-    }
+    setSelectedProducts(checked
+      ? [...selectedProducts, productId]
+      : selectedProducts.filter((id) => id !== productId)
+    );
   };
 
   const handleBulkDelete = async () => {
     if (selectedProducts.length === 0) return;
     if (!confirm(`Are you sure you want to delete ${selectedProducts.length} product(s)?`)) return;
-
     for (const productId of selectedProducts) {
       await handleDeleteProduct(productId);
     }
@@ -174,22 +163,21 @@ export default function ProductsPage() {
 
   const getStatusColor = (status: ApiProduct['status']) => {
     switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
-      case 'out_of_stock':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'active':       return 'bg-green-100 text-green-800';
+      case 'inactive':     return 'bg-gray-100 text-gray-800';
+      case 'out_of_stock': return 'bg-red-100 text-red-800';
+      default:             return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStockColor = (stock: number) => {
-    if (stock === 0) return 'text-red-600';
-    if (stock < 20) return 'text-yellow-600';
+    if (stock === 0)  return 'text-red-600';
+    if (stock < 20)   return 'text-yellow-600';
     return 'text-green-600';
   };
+
+  // Use slug for URL if available, fallback to id
+  const productUrlKey = (product: ApiProduct) => product.slug || product.id;
 
   return (
     <div className="p-6">
@@ -241,9 +229,7 @@ export default function ProductsPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           >
             {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         </div>
@@ -255,12 +241,10 @@ export default function ProductsPage() {
               <select
                 value={filters.category}
                 onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               >
                 {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
+                  <option key={category} value={category}>{category}</option>
                 ))}
               </select>
             </div>
@@ -269,7 +253,7 @@ export default function ProductsPage() {
               <select
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               >
                 <option value="">All Statuses</option>
                 <option value="active">Active</option>
@@ -289,10 +273,7 @@ export default function ProductsPage() {
               {selectedProducts.length} product{selectedProducts.length > 1 ? 's' : ''} selected
             </span>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setSelectedProducts([])}
-                className="text-blue-600 hover:text-blue-800"
-              >
+              <button onClick={() => setSelectedProducts([])} className="text-blue-600 hover:text-blue-800">
                 Clear selection
               </button>
               {hasPermission(PERMISSIONS.PRODUCTS_DELETE) && (
@@ -323,35 +304,18 @@ export default function ProductsPage() {
                   <th className="px-6 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={
-                        selectedProducts.length === filteredProducts.length &&
-                        filteredProducts.length > 0
-                      }
+                      checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rating
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -373,9 +337,7 @@ export default function ProductsPage() {
                               src={product.image}
                               alt={product.name}
                               className="w-full h-full object-cover rounded-lg"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                           ) : null}
                         </div>
@@ -389,28 +351,21 @@ export default function ProductsPage() {
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500">ID: {product.id}</div>
+                          <div className="text-xs text-gray-400 font-mono">{product.slug || product.id}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{product.category}</td>
                     <td className="px-6 py-4">
                       <div className="text-sm">
-                        <span className="font-medium text-gray-900">
-                          {formatPrice(product.price)}
-                        </span>
+                        <span className="font-medium text-gray-900">{formatPrice(product.price)}</span>
                         {product.originalPrice != null && product.originalPrice > product.price && (
-                          <span className="ml-2 text-xs text-gray-500 line-through">
-                            {formatPrice(product.originalPrice)}
-                          </span>
+                          <span className="ml-2 text-xs text-gray-500 line-through">{formatPrice(product.originalPrice)}</span>
                         )}
                       </div>
                       {product.originalPrice != null && product.originalPrice > product.price && (
                         <div className="text-xs text-green-600">
-                          {Math.round(
-                            ((product.originalPrice - product.price) / product.originalPrice) * 100
-                          )}
-                          % OFF
+                          {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
                         </div>
                       )}
                     </td>
@@ -420,12 +375,7 @@ export default function ProductsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span
-                        className={clsx(
-                          'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                          getStatusColor(product.status)
-                        )}
-                      >
+                      <span className={clsx('inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getStatusColor(product.status))}>
                         {product.status.replace('_', ' ')}
                       </span>
                     </td>
@@ -438,22 +388,25 @@ export default function ProductsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2">
+                        {/* View — slug-based */}
                         <Link
-                          href={`/admin/products/${product.id}`}
+                          href={`/admin/products/${productUrlKey(product)}`}
                           className="text-purple-600 hover:text-purple-800"
                           title="View"
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
+                        {/* Edit — slug-based */}
                         {hasPermission(PERMISSIONS.PRODUCTS_EDIT) && (
                           <Link
-                            href={`/admin/products/${product.id}/edit`}
+                            href={`/admin/products/${productUrlKey(product)}/edit`}
                             className="text-blue-600 hover:text-blue-800"
                             title="Edit"
                           >
                             <Edit className="w-4 h-4" />
                           </Link>
                         )}
+                        {/* Delete */}
                         {hasPermission(PERMISSIONS.PRODUCTS_DELETE) && (
                           <button
                             onClick={() => {
