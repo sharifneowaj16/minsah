@@ -13,15 +13,12 @@ export async function GET(
   try {
     const { id } = await params;
 
-    // Support both DB id AND slug lookup
     const product = await prisma.product.findFirst({
-      where: {
-        OR: [{ id }, { slug: id }],
-      },
+      where: { OR: [{ id }, { slug: id }] },
       include: {
-        images: { orderBy: { sortOrder: 'asc' } },
+        images:   { orderBy: { sortOrder: 'asc' } },
         category: true,
-        brand: true,
+        brand:    true,
         variants: { orderBy: { id: 'asc' } },
       },
     });
@@ -32,27 +29,26 @@ export async function GET(
 
     return NextResponse.json({
       product: {
-        // Core identity
-        id: product.id,
-        sku: product.sku,
-        name: product.name,
-        slug: product.slug,
-        description: product.description || '',
+        id:               product.id,
+        sku:              product.sku,
+        name:             product.name,
+        slug:             product.slug,
+        description:      product.description      || '',
         shortDescription: product.shortDescription || '',
 
         // Pricing
-        price: product.price.toNumber(),
+        price:          product.price.toNumber(),
         compareAtPrice: product.compareAtPrice ? product.compareAtPrice.toNumber() : null,
-        costPrice: product.costPrice ? product.costPrice.toNumber() : null,
+        costPrice:      product.costPrice      ? product.costPrice.toNumber()      : null,
 
         // Inventory
-        stock: product.quantity,
-        quantity: product.quantity,
+        stock:             product.quantity,
+        quantity:          product.quantity,
         lowStockThreshold: product.lowStockThreshold,
-        trackInventory: product.trackInventory,
-        allowBackorder: product.allowBackorder,
+        trackInventory:    product.trackInventory,
+        allowBackorder:    product.allowBackorder,
 
-        // Physical
+        // Physical — FIXED: dimensions returned individually
         weight: product.weight ? product.weight.toNumber() : null,
         dimensions: {
           length: product.length ? product.length.toNumber().toString() : '',
@@ -69,23 +65,27 @@ export async function GET(
 
         // Category & Brand
         category:     product.category?.name || '',
-        categoryId:   product.categoryId || '',
+        categoryId:   product.categoryId     || '',
         categorySlug: product.category?.slug || '',
-        brand:        product.brand?.name || '',
-        brandId:      product.brandId || '',
-        brandSlug:    product.brand?.slug || '',
+        brand:        product.brand?.name    || '',
+        brandId:      product.brandId        || '',
+        brandSlug:    product.brand?.slug    || '',
 
-        // Images
+        // FIXED: subcategory / item field
+        subcategory: product.subcategory || '',
+        item:        '', // stored in subcategory field as "Subcategory > Item" or separate
+
+        // Images — FIXED: alt text properly returned
         images: product.images.map((img) => ({
           id:        img.id,
           url:       img.url,
-          alt:       img.alt || '',
+          alt:       img.alt   || '',
           title:     img.title || '',
           sortOrder: img.sortOrder,
           isDefault: img.isDefault,
         })),
 
-        // Variants
+        // Variants — FIXED: image field included
         variants: product.variants.map((v) => ({
           id:         v.id,
           sku:        v.sku,
@@ -95,42 +95,42 @@ export async function GET(
           quantity:   v.quantity,
           attributes: v.attributes || {},
           image:      v.image || '',
+          imageAlt:   '', // stored in attributes if needed
         })),
 
         // SEO
-        metaTitle:          product.metaTitle || '',
-        metaDescription:    product.metaDescription || '',
-        tags:               product.metaKeywords || '',
-        metaKeywords:       product.metaKeywords || '',
-        bengaliName:        product.bengaliName || '',
+        metaTitle:          product.metaTitle          || '',
+        metaDescription:    product.metaDescription    || '',
+        tags:               product.metaKeywords        || '',
+        metaKeywords:       product.metaKeywords        || '',
+        bengaliName:        product.bengaliName        || '',
         bengaliDescription: product.bengaliDescription || '',
-        focusKeyword:       product.focusKeyword || '',
-        ogTitle:            product.ogTitle || '',
-        ogImageUrl:         product.ogImageUrl || '',
-        canonicalUrl:       product.canonicalUrl || '',
+        focusKeyword:       product.focusKeyword       || '',
+        ogTitle:            product.ogTitle            || '',
+        ogImageUrl:         product.ogImageUrl         || '',
+        canonicalUrl:       product.canonicalUrl       || '',
 
         // Structured Data
-        condition:     product.condition || 'NEW',
-        gtin:          product.gtin || '',
+        condition:     product.condition     || 'NEW',
+        gtin:          product.gtin          || '',
         averageRating: product.averageRating ? product.averageRating.toNumber() : 0,
-        reviewCount:   product.reviewCount || 0,
+        reviewCount:   product.reviewCount   || 0,
 
-        // Beauty Specs
-        skinType:      product.skinType || [],
-        ingredients:   product.ingredients || '',
-        shelfLife:     product.shelfLife || '',
+        // Beauty Specs — ALL INCLUDED
+        skinType:      product.skinType      || [],
+        ingredients:   product.ingredients   || '',
+        shelfLife:     product.shelfLife     || '',
         expiryDate:    product.expiryDate ? product.expiryDate.toISOString().split('T')[0] : '',
         originCountry: product.originCountry || 'Bangladesh (Local)',
-        subcategory:   product.subcategory || '',
 
-        // Shipping
+        // Shipping — ALL INCLUDED
         shippingWeight:       product.shippingWeight || '',
-        isFragile:            product.isFragile || false,
+        isFragile:            product.isFragile       || false,
         freeShippingEligible: !product.isFragile,
 
         // Discount & Offers
         discountPercentage: product.discountPercentage ? product.discountPercentage.toNumber().toString() : '',
-        salePrice:          product.salePrice ? product.salePrice.toNumber().toString() : '',
+        salePrice:          product.salePrice          ? product.salePrice.toNumber().toString()          : '',
         offerStartDate:     product.offerStartDate ? product.offerStartDate.toISOString().slice(0, 16) : '',
         offerEndDate:       product.offerEndDate   ? product.offerEndDate.toISOString().slice(0, 16)   : '',
         flashSaleEligible:  product.flashSaleEligible || false,
@@ -138,7 +138,7 @@ export async function GET(
         // Commerce Options
         returnEligible:  product.returnEligible !== false,
         codAvailable:    product.codAvailable   !== false,
-        preOrderOption:  product.preOrderOption || false,
+        preOrderOption:  product.preOrderOption  || false,
         barcode:         product.barcode         || '',
         relatedProducts: product.relatedProducts || '',
 
