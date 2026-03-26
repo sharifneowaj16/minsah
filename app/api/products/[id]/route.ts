@@ -49,7 +49,7 @@ export async function GET(
       id:        r.id,
       userName:  [r.user.firstName, r.user.lastName].filter(Boolean).join(' ') || 'Customer',
       rating:    r.rating,
-      title:     r.title || '',
+      title:     r.title   || '',
       content:   r.comment || '',
       verified:  true,
       createdAt: r.createdAt.toISOString(),
@@ -63,30 +63,32 @@ export async function GET(
         id:               product.id,
         name:             product.name,
         slug:             product.slug,
-        description:      product.description || '',
+        description:      product.description      || '',
         shortDescription: product.shortDescription || '',
         price:            product.price.toNumber(),
         originalPrice:    product.compareAtPrice ? product.compareAtPrice.toNumber() : null,
-        image:            mainImage?.url || '',
-        images:           product.images.map((i) => i.url),
+        image:            mainImage?.url  || '',
+        // FIXED: return full image objects with alt text
+        images:           product.images.map((i) => ({ url: i.url, alt: i.alt || '', isDefault: i.isDefault })),
         sku:              product.sku,
         stock:            product.quantity,
         category:         product.category?.name || '',
         categorySlug:     product.category?.slug || '',
-        brand:            product.brand?.name || '',
+        brand:            product.brand?.name    || '',
         rating:           product.averageRating?.toNumber() || 0,
-        reviews:          product.reviewCount || 0,
+        reviews:          product.reviewCount    || 0,
         inStock:          product.quantity > 0,
         isNew:            product.isNew,
         isFeatured:       product.isFeatured,
-        ingredients:      product.ingredients || '',
-        skinType:         product.skinType || [],
+        ingredients:      product.ingredients    || '',
+        skinType:         product.skinType       || [],
         codAvailable:     product.codAvailable,
         returnEligible:   product.returnEligible,
-        metaTitle:        product.metaTitle || '',
+        metaTitle:        product.metaTitle      || '',
         metaDescription:  product.metaDescription || '',
-        ogTitle:          product.ogTitle || '',
-        ogImageUrl:       product.ogImageUrl || '',
+        ogTitle:          product.ogTitle         || '',
+        ogImageUrl:       product.ogImageUrl      || '',
+        // FIXED: variants with image field
         variants: product.variants.map((v) => ({
           id:         v.id,
           sku:        v.sku,
@@ -94,6 +96,7 @@ export async function GET(
           price:      v.price ? v.price.toNumber() : product.price.toNumber(),
           stock:      v.quantity,
           attributes: v.attributes || {},
+          image:      v.image || '',
         })),
       },
       reviews,
@@ -130,12 +133,11 @@ export async function PUT(
       where: { OR: [{ id }, { slug: id }] },
       include: { variants: true, images: true },
     });
-
     if (!existing) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    // ── Resolve category ───────────────────────────────────────────────
+    // Resolve category
     let categoryId: string | null = existing.categoryId;
     if (body.category) {
       const cat = await prisma.category.findFirst({
@@ -144,7 +146,7 @@ export async function PUT(
       categoryId = cat?.id ?? existing.categoryId ?? null;
     }
 
-    // ── Resolve brand ──────────────────────────────────────────────────
+    // Resolve / create brand
     let brandId: string | null = existing.brandId;
     if (body.brand) {
       let brand = await prisma.brand.findFirst({
@@ -162,7 +164,7 @@ export async function PUT(
       brandId = brand.id;
     }
 
-    // ── Resolve slug ───────────────────────────────────────────────────
+    // Resolve slug
     let slug = existing.slug;
     if (body.slug && body.slug !== existing.slug) {
       const conflict = await prisma.product.findFirst({
@@ -171,7 +173,6 @@ export async function PUT(
       if (!conflict) slug = body.slug;
     }
 
-    // ── Build update data ──────────────────────────────────────────────
     const updateData: Record<string, unknown> = {
       name:             body.name             ?? existing.name,
       slug,
@@ -179,26 +180,17 @@ export async function PUT(
       shortDescription: body.shortDescription ?? existing.shortDescription,
       categoryId,
       brandId,
-
-      // Pricing
       price:          body.price         != null ? body.price         : existing.price,
       compareAtPrice: body.originalPrice != null ? body.originalPrice : existing.compareAtPrice,
       costPrice:      body.costPrice     != null ? body.costPrice     : existing.costPrice,
-
-      // Inventory
       lowStockThreshold: body.lowStockThreshold != null ? Number(body.lowStockThreshold) : existing.lowStockThreshold,
-
-      // Physical
       weight: body.weight != null ? body.weight : existing.weight,
-      length: body.dimensions?.length ? Number(body.dimensions.length) : existing.length,
-      width:  body.dimensions?.width  ? Number(body.dimensions.width)  : existing.width,
-      height: body.dimensions?.height ? Number(body.dimensions.height) : existing.height,
-
-      // Status
-      isActive:   body.status !== undefined ? body.status === 'active' : existing.isActive,
-      isFeatured: body.featured != null ? body.featured : existing.isFeatured,
-
-      // SEO
+      // FIXED: dimensions saved correctly
+      length: body.dimensions?.length && body.dimensions.length !== '' ? Number(body.dimensions.length) : existing.length,
+      width:  body.dimensions?.width  && body.dimensions.width  !== '' ? Number(body.dimensions.width)  : existing.width,
+      height: body.dimensions?.height && body.dimensions.height !== '' ? Number(body.dimensions.height) : existing.height,
+      isActive:   body.status   !== undefined ? body.status === 'active' : existing.isActive,
+      isFeatured: body.featured != null       ? body.featured            : existing.isFeatured,
       metaTitle:          body.metaTitle          ?? existing.metaTitle,
       metaDescription:    body.metaDescription    ?? existing.metaDescription,
       metaKeywords:       body.tags               ?? existing.metaKeywords,
@@ -208,47 +200,37 @@ export async function PUT(
       ogTitle:            body.ogTitle            ?? existing.ogTitle,
       ogImageUrl:         body.ogImageUrl         ?? existing.ogImageUrl,
       canonicalUrl:       body.canonicalUrl       ?? existing.canonicalUrl,
-
-      // Beauty specs
+      // FIXED: subcategory saved
       subcategory:   body.subcategory   ?? existing.subcategory,
       skinType:      body.skinType      ?? existing.skinType,
       ingredients:   body.ingredients   ?? existing.ingredients,
       shelfLife:     body.shelfLife     ?? existing.shelfLife,
       expiryDate:    body.expiryDate    ? new Date(body.expiryDate) : existing.expiryDate,
       originCountry: body.originCountry ?? existing.originCountry,
-
-      // Shipping
       shippingWeight: body.shippingWeight ?? existing.shippingWeight,
       isFragile:      body.isFragile      ?? existing.isFragile,
-
-      // Discount
       discountPercentage: body.discountPercentage != null ? Number(body.discountPercentage) : existing.discountPercentage,
       salePrice:          body.salePrice          != null ? Number(body.salePrice)          : existing.salePrice,
-      offerStartDate:     body.offerStartDate ? new Date(body.offerStartDate) : existing.offerStartDate,
-      offerEndDate:       body.offerEndDate   ? new Date(body.offerEndDate)   : existing.offerEndDate,
+      offerStartDate: body.offerStartDate ? new Date(body.offerStartDate) : existing.offerStartDate,
+      offerEndDate:   body.offerEndDate   ? new Date(body.offerEndDate)   : existing.offerEndDate,
       flashSaleEligible:  body.flashSaleEligible ?? existing.flashSaleEligible,
-
-      // Commerce
       returnEligible:  body.returnEligible  ?? existing.returnEligible,
       codAvailable:    body.codAvailable    ?? existing.codAvailable,
       preOrderOption:  body.preOrderOption  ?? existing.preOrderOption,
       barcode:         body.barcode         ?? existing.barcode,
       relatedProducts: body.relatedProducts ?? existing.relatedProducts,
-
-      // Structured data
-      condition:     body.condition      ?? existing.condition,
-      gtin:          body.gtin           ?? existing.gtin,
-      averageRating: body.averageRating  != null ? Number(body.averageRating) : existing.averageRating,
-      reviewCount:   body.reviewCount    != null ? Number(body.reviewCount)   : existing.reviewCount,
+      condition:     body.condition     ?? existing.condition,
+      gtin:          body.gtin          ?? existing.gtin,
+      averageRating: body.averageRating != null ? Number(body.averageRating) : existing.averageRating,
+      reviewCount:   body.reviewCount   != null ? Number(body.reviewCount)   : existing.reviewCount,
     };
 
-    // ── Update product ─────────────────────────────────────────────────
     const updated = await prisma.product.update({
       where: { id: existing.id },
       data:  updateData,
     });
 
-    // ── Images: replace if provided ────────────────────────────────────
+    // FIXED: Images with alt text saved properly
     if (Array.isArray(body.images) && body.images.length > 0) {
       await prisma.productImage.deleteMany({ where: { productId: existing.id } });
       await prisma.productImage.createMany({
@@ -256,8 +238,8 @@ export async function PUT(
           (img: { url: string; alt?: string; title?: string; sortOrder?: number }, idx: number) => ({
             productId: existing.id,
             url:       img.url,
-            alt:       img.alt   || body.name || '',
-            title:     img.title || body.name || '',
+            alt:       img.alt   || '',
+            title:     img.title || '',
             sortOrder: img.sortOrder ?? idx,
             isDefault: idx === 0,
           })
@@ -265,22 +247,20 @@ export async function PUT(
       });
     }
 
-    // ── Variants: upsert ───────────────────────────────────────────────
+    // FIXED: Variants with image field
     if (Array.isArray(body.variants) && body.variants.length > 0) {
       for (const v of body.variants) {
-        const variantSku = v.sku || `${updated.sku}-V${Date.now()}`;
+        const variantSku  = v.sku || `${updated.sku}-V${Date.now()}`;
+        const isRealId    = v.id && v.id.length > 10 && !['1','2','3','4','5'].includes(v.id);
         const variantData = {
           productId:  existing.id,
           name:       v.size || v.color || v.name || updated.name,
           sku:        variantSku,
-          price:      v.price  != null ? Number(v.price)  : updated.price,
-          quantity:   v.stock  != null ? Number(v.stock)  : 0,
+          price:      v.price != null ? Number(v.price) : updated.price,
+          quantity:   v.stock != null ? Number(v.stock) : 0,
           attributes: { size: v.size || '', color: v.color || '' },
+          image:      v.image || null, // FIXED: variant image saved
         };
-
-        // Check if it's an existing DB variant (real cuid, not temp id like '1')
-        const isRealId = v.id && v.id.length > 10 && !['1','2','3','4','5'].includes(v.id);
-
         if (isRealId) {
           await prisma.productVariant.upsert({
             where:  { id: v.id },
@@ -288,32 +268,17 @@ export async function PUT(
             create: { ...variantData, sku: variantSku },
           });
         } else {
-          // New variant — check sku uniqueness first
           const skuConflict = await prisma.productVariant.findUnique({ where: { sku: variantSku } });
-          if (!skuConflict) {
-            await prisma.productVariant.create({ data: variantData });
-          }
+          if (!skuConflict) await prisma.productVariant.create({ data: variantData });
         }
       }
-
-      // Sync parent quantity from sum of variants
       const totalStock = body.variants.reduce(
         (sum: number, v: { stock?: string | number }) => sum + (Number(v.stock) || 0), 0
       );
-      await prisma.product.update({
-        where: { id: existing.id },
-        data:  { quantity: totalStock },
-      });
+      await prisma.product.update({ where: { id: existing.id }, data: { quantity: totalStock } });
     }
 
-    return NextResponse.json({
-      success: true,
-      product: {
-        id:   updated.id,
-        slug: updated.slug,
-        name: updated.name,
-      },
-    });
+    return NextResponse.json({ success: true, product: { id: updated.id, slug: updated.slug, name: updated.name } });
   } catch (error) {
     console.error('PUT /api/products/[id] error:', error);
     return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
@@ -327,14 +292,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-
-    const existing = await prisma.product.findFirst({
-      where: { OR: [{ id }, { slug: id }] },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-
+    const existing = await prisma.product.findFirst({ where: { OR: [{ id }, { slug: id }] } });
+    if (!existing) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     await prisma.product.delete({ where: { id: existing.id } });
     return NextResponse.json({ success: true });
   } catch (error) {
