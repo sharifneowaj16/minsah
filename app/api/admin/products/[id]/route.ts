@@ -1,3 +1,4 @@
+// app/api/admin/products/[id]/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -12,8 +13,11 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const product = await prisma.product.findUnique({
-      where: { id },
+    // Support both DB id AND slug lookup
+    const product = await prisma.product.findFirst({
+      where: {
+        OR: [{ id }, { slug: id }],
+      },
       include: {
         images: { orderBy: { sortOrder: 'asc' } },
         category: true,
@@ -26,10 +30,9 @@ export async function GET(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    // Return ALL fields — for admin edit page only
     return NextResponse.json({
       product: {
-        // Core
+        // Core identity
         id: product.id,
         sku: product.sku,
         name: product.name,
@@ -53,64 +56,91 @@ export async function GET(
         weight: product.weight ? product.weight.toNumber() : null,
         dimensions: {
           length: product.length ? product.length.toNumber().toString() : '',
-          width: product.width ? product.width.toNumber().toString() : '',
+          width:  product.width  ? product.width.toNumber().toString()  : '',
           height: product.height ? product.height.toNumber().toString() : '',
         },
 
         // Status
-        isActive: product.isActive,
+        isActive:   product.isActive,
         isFeatured: product.isFeatured,
-        isNew: product.isNew,
-        status: !product.isActive ? 'inactive' : product.quantity === 0 ? 'out_of_stock' : 'active',
-        featured: product.isFeatured,
+        isNew:      product.isNew,
+        status:     !product.isActive ? 'inactive' : product.quantity === 0 ? 'out_of_stock' : 'active',
+        featured:   product.isFeatured,
 
-        // Category & Brand — return both object and string for compatibility
-        category: product.category?.name || '',
-        categoryId: product.categoryId || '',
+        // Category & Brand
+        category:     product.category?.name || '',
+        categoryId:   product.categoryId || '',
         categorySlug: product.category?.slug || '',
-        brand: product.brand?.name || '',
-        brandId: product.brandId || '',
-        brandSlug: product.brand?.slug || '',
+        brand:        product.brand?.name || '',
+        brandId:      product.brandId || '',
+        brandSlug:    product.brand?.slug || '',
 
-        // Images — full objects with alt text
+        // Images
         images: product.images.map((img) => ({
-          id: img.id,
-          url: img.url,
-          alt: img.alt || '',
-          title: img.title || '',
+          id:        img.id,
+          url:       img.url,
+          alt:       img.alt || '',
+          title:     img.title || '',
           sortOrder: img.sortOrder,
           isDefault: img.isDefault,
         })),
 
-        // Variants — full objects
+        // Variants
         variants: product.variants.map((v) => ({
-          id: v.id,
-          sku: v.sku,
-          name: v.name,
-          price: v.price ? v.price.toNumber() : product.price.toNumber(),
-          stock: v.quantity,
-          quantity: v.quantity,
+          id:         v.id,
+          sku:        v.sku,
+          name:       v.name,
+          price:      v.price ? v.price.toNumber() : product.price.toNumber(),
+          stock:      v.quantity,
+          quantity:   v.quantity,
           attributes: v.attributes || {},
-          image: v.image || '',
+          image:      v.image || '',
         })),
 
         // SEO
-        metaTitle: product.metaTitle || '',
-        metaDescription: product.metaDescription || '',
-        tags: product.metaKeywords || '',
-        metaKeywords: product.metaKeywords || '',
-        bengaliName: product.bengaliName || '',
+        metaTitle:          product.metaTitle || '',
+        metaDescription:    product.metaDescription || '',
+        tags:               product.metaKeywords || '',
+        metaKeywords:       product.metaKeywords || '',
+        bengaliName:        product.bengaliName || '',
         bengaliDescription: product.bengaliDescription || '',
-        focusKeyword: product.focusKeyword || '',
-        ogTitle: product.ogTitle || '',
-        ogImageUrl: product.ogImageUrl || '',
-        canonicalUrl: product.canonicalUrl || '',
+        focusKeyword:       product.focusKeyword || '',
+        ogTitle:            product.ogTitle || '',
+        ogImageUrl:         product.ogImageUrl || '',
+        canonicalUrl:       product.canonicalUrl || '',
 
         // Structured Data
-        condition: product.condition || 'NEW',
-        gtin: product.gtin || '',
+        condition:     product.condition || 'NEW',
+        gtin:          product.gtin || '',
         averageRating: product.averageRating ? product.averageRating.toNumber() : 0,
-        reviewCount: product.reviewCount || 0,
+        reviewCount:   product.reviewCount || 0,
+
+        // Beauty Specs
+        skinType:      product.skinType || [],
+        ingredients:   product.ingredients || '',
+        shelfLife:     product.shelfLife || '',
+        expiryDate:    product.expiryDate ? product.expiryDate.toISOString().split('T')[0] : '',
+        originCountry: product.originCountry || 'Bangladesh (Local)',
+        subcategory:   product.subcategory || '',
+
+        // Shipping
+        shippingWeight:       product.shippingWeight || '',
+        isFragile:            product.isFragile || false,
+        freeShippingEligible: !product.isFragile,
+
+        // Discount & Offers
+        discountPercentage: product.discountPercentage ? product.discountPercentage.toNumber().toString() : '',
+        salePrice:          product.salePrice ? product.salePrice.toNumber().toString() : '',
+        offerStartDate:     product.offerStartDate ? product.offerStartDate.toISOString().slice(0, 16) : '',
+        offerEndDate:       product.offerEndDate   ? product.offerEndDate.toISOString().slice(0, 16)   : '',
+        flashSaleEligible:  product.flashSaleEligible || false,
+
+        // Commerce Options
+        returnEligible:  product.returnEligible !== false,
+        codAvailable:    product.codAvailable   !== false,
+        preOrderOption:  product.preOrderOption || false,
+        barcode:         product.barcode         || '',
+        relatedProducts: product.relatedProducts || '',
 
         // Timestamps
         createdAt: product.createdAt.toISOString(),
