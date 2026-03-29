@@ -30,12 +30,12 @@ const SECRET_KEY  = process.env.MINIO_SECRET_KEY  || '';
 const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 const MAX_DIMENSION = 1200;
 const WEBP_QUALITY  = 82;
-const BATCH_SIZE    = 5; // concurrent uploads
+const BATCH_SIZE    = 5;
 
 // ─── Args ──────────────────────────────────────────────────────────────────
-const args    = process.argv.slice(2);
-const dryRun  = args.includes('--dry-run');
-const folder  = args.includes('--folder') ? args[args.indexOf('--folder') + 1] : 'products';
+const args     = process.argv.slice(2);
+const dryRun   = args.includes('--dry-run');
+const folder   = args.includes('--folder') ? args[args.indexOf('--folder') + 1] : 'products';
 const limitArg = args.includes('--limit')  ? parseInt(args[args.indexOf('--limit') + 1]) : Infinity;
 
 // ─── MinIO client ──────────────────────────────────────────────────────────
@@ -58,15 +58,14 @@ function listObjects(prefix: string): Promise<Array<{ name: string; size: number
   });
 }
 
+// minio v8+ — getObject এখন Promise<stream> return করে, callback নেই
 async function getObject(key: string): Promise<Buffer> {
+  const stream = await client.getObject(BUCKET, key);
+  const chunks: Buffer[] = [];
   return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    client.getObject(BUCKET, key, (err, stream) => {
-      if (err) return reject(err);
-      stream.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-      stream.on('end', () => resolve(Buffer.concat(chunks)));
-      stream.on('error', reject);
-    });
+    stream.on('data', (chunk: Buffer) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
   });
 }
 
@@ -80,7 +79,6 @@ function isAlreadyWebp(key: string): boolean {
 }
 
 function getWebpKey(key: string): string {
-  // products/abc/123-image.png → products/abc/123-image.webp
   return key.replace(/\.[^.]+$/, '.webp');
 }
 
@@ -96,20 +94,6 @@ interface Result {
 
 async function processImage(key: string, originalSize: number): Promise<Result> {
   if (isAlreadyWebp(key)) {
-    // Already WebP — just update Cache-Control (copy object)
-    if (!dryRun) {
-      try {
-        await client.copyObject(
-          BUCKET, key,
-          `/${BUCKET}/${key}`,
-          // @ts-ignore — minio SDK তে metadata copy support
-          new (await import('minio')).CopyConditions(),
-        );
-      } catch {
-        // copyObject দিয়ে metadata update না হলে skip করি
-        // (MinIO version dependent)
-      }
-    }
     return { key, status: 'skipped', originalSize };
   }
 
@@ -129,7 +113,6 @@ async function processImage(key: string, originalSize: number): Promise<Result> 
     const savings = (((originalSize - webpBuffer.length) / originalSize) * 100).toFixed(1);
 
     if (!dryRun) {
-      // 1. WebP upload করো
       await client.putObject(BUCKET, webpKey, webpBuffer, webpBuffer.length, {
         'Content-Type': 'image/webp',
         'Cache-Control': CACHE_CONTROL,
@@ -138,7 +121,6 @@ async function processImage(key: string, originalSize: number): Promise<Result> 
         'x-amz-meta-original-size': String(originalSize),
       });
 
-      // 2. পুরানো key delete করো (শুধু যদি নতুন key আলাদা হয়)
       if (webpKey !== key) {
         await client.removeObject(BUCKET, key);
       }
@@ -177,7 +159,6 @@ async function main() {
   console.log(`  Limit   : ${isFinite(limitArg) ? limitArg : 'none'}`);
   console.log('');
 
-  // List images
   console.log(`Listing objects in ${folder}/...`);
   const allObjects = await listObjects(`${folder}/`);
   const imageObjects = allObjects
@@ -191,11 +172,9 @@ async function main() {
     return;
   }
 
-  // Process
   const results = await processBatch(imageObjects);
   console.log('\n');
 
-  // Summary
   const converted = results.filter((r) => r.status === 'converted' || r.status === 'dry-run');
   const errors    = results.filter((r) => r.status === 'error');
   const skipped   = results.filter((r) => r.status === 'skipped');
@@ -208,7 +187,9 @@ async function main() {
   console.log(`  Converted : ${converted.length}`);
   console.log(`  Skipped   : ${skipped.length}`);
   console.log(`  Errors    : ${errors.length}`);
-  console.log(`  Total savings : ${(totalSavings / 1024 / 1024).toFixed(1)} MB (${((totalSavings / totalOriginal) * 100).toFixed(1)}%)`);
+  if (totalOriginal > 0) {
+    console.log(`  Total savings : ${(totalSavings / 1024 / 1024).toFixed(1)} MB (${((totalSavings / totalOriginal) * 100).toFixed(1)}%)`);
+  }
 
   if (errors.length > 0) {
     console.log('\nErrors:');
