@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { ShoppingCart, Minus, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 
@@ -26,7 +26,6 @@ export default function AddToCartStepper({
   const { items, addItem, updateQuantity, removeItem } = useCart();
   const [isPending, startTransition] = useTransition();
 
-  // Cart-এ এই product আছে কিনা দেখো
   const cartItemId = variantId || productId;
   const cartItem = items.find((i) => i.id === cartItemId);
   const qty = cartItem?.quantity ?? 0;
@@ -56,7 +55,6 @@ export default function AddToCartStepper({
         await updateQuantity(cartItemId, qty - 1);
       });
     } else {
-      // qty === 1 → remove
       startTransition(async () => {
         await removeItem(cartItemId);
       });
@@ -85,7 +83,7 @@ export default function AddToCartStepper({
   // ── Stepper ────────────────────────────────────────────────────
   return (
     <div
-      className={`flex items-center gap-0 rounded-2xl overflow-hidden border-2 border-[#3D1F0E] ${className}`}
+      className={`flex items-center justify-between rounded-2xl border-2 border-[#3D1F0E] h-11 px-1 ${className}`}
       role="group"
       aria-label={`${productName} quantity`}
     >
@@ -94,20 +92,20 @@ export default function AddToCartStepper({
         onClick={handleDecrement}
         disabled={isPending}
         aria-label={qty === 1 ? `Remove ${productName} from cart` : `Decrease ${productName} quantity`}
-        className="w-10 h-10 flex items-center justify-center text-[#3D1F0E] hover:bg-[#F5E9DC] transition-colors duration-150 disabled:opacity-50 flex-shrink-0"
+        className="w-8 h-8 flex items-center justify-center rounded-xl text-[#3D1F0E] hover:bg-[#F5E9DC] transition-colors duration-150 disabled:opacity-50 flex-shrink-0"
       >
         {isPending ? (
-          <Loader2 size={14} className="animate-spin" />
+          <Loader2 size={13} className="animate-spin" />
         ) : qty === 1 ? (
-          <Trash2 size={15} className="text-red-500" />
+          <Trash2 size={14} className="text-red-500" />
         ) : (
-          <Minus size={15} />
+          <Minus size={14} />
         )}
       </button>
 
       {/* Quantity */}
       <span
-        className="min-w-[32px] text-center text-sm font-bold text-[#1A0D06] select-none"
+        className="w-8 text-center text-sm font-bold text-[#1A0D06] select-none"
         aria-live="polite"
         aria-atomic="true"
       >
@@ -123,9 +121,9 @@ export default function AddToCartStepper({
         onClick={handleIncrement}
         disabled={isPending || qty >= maxStock}
         aria-label={`Increase ${productName} quantity`}
-        className="w-10 h-10 flex items-center justify-center text-[#3D1F0E] hover:bg-[#F5E9DC] transition-colors duration-150 disabled:opacity-40 flex-shrink-0"
+        className="w-8 h-8 flex items-center justify-center rounded-xl text-[#3D1F0E] hover:bg-[#F5E9DC] transition-colors duration-150 disabled:opacity-40 flex-shrink-0"
       >
-        <Plus size={15} />
+        <Plus size={14} />
       </button>
     </div>
   );
