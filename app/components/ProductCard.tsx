@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Package } from 'lucide-react';
 import { formatPrice } from '@/utils/currency';
-import AddToCartStepper from './AddToCartStepper';
+import AddToCartStepper from '@/app/products/[id]/components/AddToCartStepper';
 
 interface ProductCardProps {
   id: string;
