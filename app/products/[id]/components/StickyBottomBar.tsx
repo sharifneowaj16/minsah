@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ShoppingCart, Check, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import AddToCartStepper from './AddToCartStepper';
@@ -15,8 +15,6 @@ interface StickyBottomBarProps {
   quantity: number;
   inStock: boolean;
   whatsappNumber: string;
-  onAddToCart: () => void;
-  addedToCart: boolean;
 }
 
 export default function StickyBottomBar({
@@ -27,28 +25,10 @@ export default function StickyBottomBar({
   variantId,
   quantity,
   inStock,
-  onAddToCart,
-  addedToCart,
 }: StickyBottomBarProps) {
   const router = useRouter();
   const { addItem } = useCart();
   const [buying, setBuying] = useState(false);
-
-  const handleAddToCart = () => {
-    if (!inStock) return;
-
-    // CartContext-এ add করো
-    addItem({
-      id: variantId || productId,
-      name: productName,
-      price: price / quantity, // unit price
-      quantity,
-      image: productImage,
-    });
-
-    // Parent callback — animation trigger
-    onAddToCart();
-  };
 
   const handleBuyNow = () => {
     if (!inStock) return;
@@ -87,24 +67,16 @@ export default function StickyBottomBar({
 
           {/* Buttons */}
           <div className="flex gap-2">
-            {/* Add to Cart */}
-            <button
-              onClick={handleAddToCart}
-              disabled={!inStock || addedToCart}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl text-sm font-semibold border-2 transition-all duration-200 active:scale-95 ${
-                addedToCart
-                  ? 'bg-green-500 border-green-500 text-white'
-                  : !inStock
-                  ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-transparent border-[#3D1F0E] text-[#3D1F0E] hover:bg-[#F5E9DC]'
-              }`}
-            >
-              {addedToCart ? (
-                <><Check size={15} /> Added</>
-              ) : (
-                <><ShoppingCart size={15} /> Add to Bag</>
-              )}
-            </button>
+            {/* Add to Cart — Stepper */}
+            <AddToCartStepper
+              productId={productId}
+              productName={productName}
+              productImage={productImage}
+              price={price / quantity}
+              maxStock={99}
+              variantId={variantId}
+              className="flex-1"
+            />
 
             {/* Buy Now */}
             <button
