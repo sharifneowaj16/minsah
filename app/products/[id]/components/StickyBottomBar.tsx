@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ShoppingCart, Check, ShoppingBag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
+import AddToCartStepper from './AddToCartStepper';
 
 interface StickyBottomBarProps {
   productId: string;
