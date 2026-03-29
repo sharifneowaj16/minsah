@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Package } from 'lucide-react';
 import { formatPrice } from '@/utils/currency';
+import AddToCartStepper from './AddToCartStepper';
 
 interface ProductCardProps {
   id: string;
@@ -65,6 +66,15 @@ export default function ProductCard({
             {originalPrice && (
               <span className="text-sm text-gray-400 line-through">{formatPrice(originalPrice)}</span>
             )}
+          </div>
+          <div className="mt-3" onClick={(e) => e.preventDefault()}>
+            <AddToCartStepper
+              productId={id}
+              productName={name}
+              productImage={image}
+              price={price}
+              className="w-full"
+            />
           </div>
         </div>
       </div>
