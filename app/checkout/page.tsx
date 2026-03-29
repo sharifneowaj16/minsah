@@ -1,14 +1,15 @@
 'use client';
 
 import { useCart } from '@/contexts/CartContext';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, CreditCard, FileText, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 import { formatPrice } from '@/utils/currency';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     items,
     subtotal,
@@ -17,11 +18,13 @@ export default function CheckoutPage() {
     total,
     selectedAddress,
     selectedPaymentMethod,
-    updateQuantity
   } = useCart();
 
   const [expandedSection, setExpandedSection] = useState<'address' | 'payment' | 'summary' | null>('address');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  // Buy Now থেকে আসলে — cart-এ items থাকবেই (StickyBottomBar addItem করেছে)
+  // তাই শুধু cart items দেখালেই হবে
 
   const handlePlaceOrder = async () => {
     if (!selectedAddress) {
@@ -32,10 +35,13 @@ export default function CheckoutPage() {
       alert('Please select a payment method');
       return;
     }
+    if (items.length === 0) {
+      alert('Cart is empty');
+      return;
+    }
 
     setIsPlacingOrder(true);
     try {
-      // Detect if this is a real DB id (cuid format) or a local temp id (numeric timestamp)
       const isRealDbId = selectedAddress.id && !/^\d+$/.test(selectedAddress.id);
 
       const res = await fetch('/api/orders', {
@@ -50,9 +56,7 @@ export default function CheckoutPage() {
             price: item.price,
             quantity: item.quantity,
           })),
-          // Send real DB id if available
           addressId: isRealDbId ? selectedAddress.id : undefined,
-          // Always send addressData as fallback so server can resolve/create
           addressData: {
             fullName:       selectedAddress.fullName,
             phoneNumber:    selectedAddress.phoneNumber,
@@ -104,6 +108,7 @@ export default function CheckoutPage() {
       </header>
 
       <div className="px-4 py-6 space-y-4">
+
         {/* Shipping Address Section */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
@@ -123,11 +128,9 @@ export default function CheckoutPage() {
                 )}
               </div>
             </div>
-            {expandedSection === 'address' ? (
-              <ChevronUp className="text-minsah-secondary" size={20} />
-            ) : (
-              <ChevronDown className="text-minsah-secondary" size={20} />
-            )}
+            {expandedSection === 'address'
+              ? <ChevronUp className="text-minsah-secondary" size={20} />
+              : <ChevronDown className="text-minsah-secondary" size={20} />}
           </button>
 
           {expandedSection === 'address' && (
@@ -143,9 +146,7 @@ export default function CheckoutPage() {
                   <div className="pr-12">
                     <div className="flex items-start gap-2 mb-2">
                       <MapPin size={16} className="text-minsah-primary mt-0.5" />
-                      <p className="text-sm font-semibold text-minsah-dark">
-                        {selectedAddress.address}
-                      </p>
+                      <p className="text-sm font-semibold text-minsah-dark">{selectedAddress.address}</p>
                     </div>
                     <p className="text-sm text-minsah-secondary ml-6">
                       {selectedAddress.city}, {selectedAddress.zone}
@@ -180,17 +181,13 @@ export default function CheckoutPage() {
               <div className="text-left">
                 <h2 className="font-bold text-minsah-dark">Payment Method</h2>
                 {selectedPaymentMethod && expandedSection !== 'payment' && (
-                  <p className="text-xs text-minsah-secondary">
-                    {selectedPaymentMethod.name}
-                  </p>
+                  <p className="text-xs text-minsah-secondary">{selectedPaymentMethod.name}</p>
                 )}
               </div>
             </div>
-            {expandedSection === 'payment' ? (
-              <ChevronUp className="text-minsah-secondary" size={20} />
-            ) : (
-              <ChevronDown className="text-minsah-secondary" size={20} />
-            )}
+            {expandedSection === 'payment'
+              ? <ChevronUp className="text-minsah-secondary" size={20} />
+              : <ChevronDown className="text-minsah-secondary" size={20} />}
           </button>
         </div>
 
@@ -211,52 +208,61 @@ export default function CheckoutPage() {
                 </p>
               </div>
             </div>
-            {expandedSection === 'summary' ? (
-              <ChevronUp className="text-minsah-secondary" size={20} />
-            ) : (
-              <ChevronDown className="text-minsah-secondary" size={20} />
-            )}
+            {expandedSection === 'summary'
+              ? <ChevronUp className="text-minsah-secondary" size={20} />
+              : <ChevronDown className="text-minsah-secondary" size={20} />}
           </button>
 
           {expandedSection === 'summary' && (
             <div className="px-4 pb-4 border-t border-minsah-accent">
-              <div className="mt-4 space-y-3">
-                {items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-12 h-12 rounded-lg object-cover"
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-minsah-dark line-clamp-1">{item.name}</p>
-                      <p className="text-xs text-minsah-secondary">Qty: {item.quantity}</p>
+              {items.length === 0 ? (
+                <div className="mt-4 text-center py-6">
+                  <p className="text-sm text-minsah-secondary mb-3">Cart empty</p>
+                  <Link href="/shop" className="text-minsah-primary font-semibold text-sm">
+                    Continue Shopping →
+                  </Link>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-minsah-accent flex-shrink-0">
+                        {item.image && (item.image.startsWith('/') || item.image.startsWith('http')) ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="w-full h-full flex items-center justify-center text-2xl">{item.image || '✨'}</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-minsah-dark line-clamp-1">{item.name}</p>
+                        <p className="text-xs text-minsah-secondary">Qty: {item.quantity}</p>
+                      </div>
+                      <p className="text-sm font-bold text-minsah-primary">
+                        {formatPrice(item.price * item.quantity)}
+                      </p>
                     </div>
-                    <p className="text-sm font-bold text-minsah-primary">
-                      {formatPrice(item.price * item.quantity)}
-                    </p>
-                  </div>
-                ))}
+                  ))}
 
-                <div className="border-t border-minsah-accent pt-3 space-y-2">
-                  <div className="flex justify-between text-sm text-minsah-secondary">
-                    <span>Subtotal</span>
-                    <span>{formatPrice(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-minsah-secondary">
-                    <span>Shipping</span>
-                    <span>{shippingCost === 0 ? 'Free' : formatPrice(shippingCost)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-minsah-secondary">
-                    <span>Tax (5%)</span>
-                    <span>{formatPrice(tax)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-minsah-dark">
-                    <span>Total</span>
-                    <span>{formatPrice(total)}</span>
+                  <div className="border-t border-minsah-accent pt-3 space-y-2">
+                    <div className="flex justify-between text-sm text-minsah-secondary">
+                      <span>Subtotal</span>
+                      <span>{formatPrice(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-minsah-secondary">
+                      <span>Shipping</span>
+                      <span>{shippingCost === 0 ? 'Free' : formatPrice(shippingCost)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-minsah-secondary">
+                      <span>Tax (5%)</span>
+                      <span>{formatPrice(tax)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-minsah-dark">
+                      <span>Total</span>
+                      <span>{formatPrice(total)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -284,5 +290,17 @@ export default function CheckoutPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-minsah-light flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-minsah-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }
