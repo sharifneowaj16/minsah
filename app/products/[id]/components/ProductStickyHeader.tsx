@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowLeft, ShoppingCart } from 'lucide-react';
 import { useScrollHeader } from '@/hooks/useSwipeAndScrollHeader';
+import { useCart } from '@/contexts/CartContext';
 
 interface ProductStickyHeaderProps {
   productName: string;
@@ -11,6 +12,8 @@ interface ProductStickyHeaderProps {
 
 export default function ProductStickyHeader({ productName, price }: ProductStickyHeaderProps) {
   const showDetails = useScrollHeader(280);
+  const { items } = useCart();
+  const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className={`sticky top-0 z-40 transition-all duration-300 ${
@@ -37,8 +40,13 @@ export default function ProductStickyHeader({ productName, price }: ProductStick
         </p>
 
         {/* Cart */}
-        <Link href="/cart" className="text-[#F5E6D3] hover:text-white transition flex-shrink-0">
+        <Link href="/cart" className="text-[#F5E6D3] hover:text-white transition flex-shrink-0 relative">
           <ShoppingCart size={18} />
+          {cartCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              {cartCount > 9 ? '9+' : cartCount}
+            </span>
+          )}
         </Link>
       </div>
     </div>
