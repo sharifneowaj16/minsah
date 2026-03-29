@@ -83,7 +83,7 @@ export default function AddToCartStepper({
   // ── Stepper ────────────────────────────────────────────────────
   return (
     <div
-      className={`flex items-center justify-between rounded-2xl border-2 border-[#3D1F0E] h-11 px-1 ${className}`}
+      className={`flex items-center h-11 rounded-2xl border-2 border-[#3D1F0E] ${className}`}
       role="group"
       aria-label={`${productName} quantity`}
     >
@@ -92,7 +92,7 @@ export default function AddToCartStepper({
         onClick={handleDecrement}
         disabled={isPending}
         aria-label={qty === 1 ? `Remove ${productName} from cart` : `Decrease ${productName} quantity`}
-        className="w-8 h-8 flex items-center justify-center rounded-xl text-[#3D1F0E] hover:bg-[#F5E9DC] transition-colors duration-150 disabled:opacity-50 flex-shrink-0"
+        className="w-10 h-full flex items-center justify-center flex-shrink-0 text-[#3D1F0E] hover:bg-[#F5E9DC] rounded-l-2xl transition-colors duration-150 disabled:opacity-50"
       >
         {isPending ? (
           <Loader2 size={13} className="animate-spin" />
@@ -103,9 +103,9 @@ export default function AddToCartStepper({
         )}
       </button>
 
-      {/* Quantity */}
+      {/* Quantity — flex-1 so it fills remaining space and stays centered */}
       <span
-        className="w-8 text-center text-sm font-bold text-[#1A0D06] select-none"
+        className="flex-1 text-center text-sm font-bold text-[#1A0D06] select-none"
         aria-live="polite"
         aria-atomic="true"
       >
@@ -121,7 +121,7 @@ export default function AddToCartStepper({
         onClick={handleIncrement}
         disabled={isPending || qty >= maxStock}
         aria-label={`Increase ${productName} quantity`}
-        className="w-8 h-8 flex items-center justify-center rounded-xl text-[#3D1F0E] hover:bg-[#F5E9DC] transition-colors duration-150 disabled:opacity-40 flex-shrink-0"
+        className="w-10 h-full flex items-center justify-center flex-shrink-0 text-[#3D1F0E] hover:bg-[#F5E9DC] rounded-r-2xl transition-colors duration-150 disabled:opacity-40"
       >
         <Plus size={14} />
       </button>
