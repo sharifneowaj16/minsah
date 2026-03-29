@@ -173,7 +173,6 @@ export default function ProductClient({
   );
   const [currentPrice, setCurrentPrice]       = useState(product.price);
   const [quantity, setQuantity]               = useState(1);
-  const [addedToCart, setAddedToCart]         = useState(false);
   const [expandIngredients, setExpandIngredients] = useState(false);
   const [variantImageOverride, setVariantImageOverride] = useState<string | null>(null);
 
@@ -191,11 +190,6 @@ export default function ProductClient({
   // Called by VariantSelector when a variant with its own image is selected
   const handleVariantImageChange = useCallback((imageUrl: string | null) => {
     setVariantImageOverride(imageUrl);
-  }, []);
-
-  const handleAddToCart = useCallback(() => {
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2500);
   }, []);
 
   const totalPrice = currentPrice * quantity;
@@ -422,8 +416,6 @@ export default function ProductClient({
         quantity={quantity}
         inStock={product.inStock}
         whatsappNumber={WHATSAPP_NUMBER}
-        onAddToCart={handleAddToCart}
-        addedToCart={addedToCart}
       />
     </>
   );
