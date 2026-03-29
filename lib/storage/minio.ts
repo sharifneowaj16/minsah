@@ -122,7 +122,7 @@ export async function processProductImage(
     };
   } catch (err) {
     // sharp fail হলে original দিয়ে চালিয়ে যাই
-    logger.warn('sharp processing failed, using original:', err);
+    logger.warn('sharp processing failed, using original:', err as Record<string, unknown>);
     return {
       buffer: inputBuffer,
       contentType: originalContentType,
