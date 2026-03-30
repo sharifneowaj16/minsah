@@ -34,6 +34,8 @@ export default function AddToCartStepper({
     startTransition(async () => {
       await addItem({
         id: cartItemId,
+        productId,           // real product ID for API POST
+        variantId: variantId ?? null,
         name: productName,
         price,
         quantity: 1,
