@@ -12,6 +12,10 @@ interface StickyBottomBarProps {
   productImage: string;
   price: number;
   variantId: string | null;
+  variantName?: string | null;
+  size?: string | null;
+  color?: string | null;
+  variantImage?: string | null;
   quantity: number;
   inStock: boolean;
   whatsappNumber: string;
@@ -23,6 +27,10 @@ export default function StickyBottomBar({
   productImage,
   price,
   variantId,
+  variantName,
+  size,
+  color,
+  variantImage,
   quantity,
   inStock,
 }: StickyBottomBarProps) {
@@ -75,6 +83,10 @@ export default function StickyBottomBar({
               price={price / quantity}
               maxStock={99}
               variantId={variantId}
+              variantName={variantName}
+              size={size}
+              color={color}
+              variantImage={variantImage}
               className="flex-1"
             />
 
