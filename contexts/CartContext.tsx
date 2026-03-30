@@ -6,14 +6,19 @@ import { useAuth } from './AuthContext';
 // Types
 export interface CartItem {
   id: string;
-  cartItemId?: string; // DB cart item ID (only for logged-in users)
-  productId?: string;  // actual product ID (for API calls)
+  cartItemId?: string;       // DB cart item ID (only for logged-in users)
+  productId?: string;        // actual product ID (for API calls)
   variantId?: string | null;
   name: string;
   price: number;
   quantity: number;
   image: string;
   sku?: string;
+  // variant display info
+  variantName?: string | null;  // e.g. "30ml / White"
+  size?: string | null;
+  color?: string | null;
+  variantImage?: string | null; // variant-specific image
 }
 
 export interface Address {
@@ -73,19 +78,36 @@ function mapApiItem(apiItem: {
   variantId: string | null;
   quantity: number;
   product: { id: string; name: string; price: number; image: string | null };
-  variant: { id: string; price: number } | null;
+  variant: {
+    id: string;
+    name: string;
+    price: number;
+    attributes: Record<string, string> | null;
+  } | null;
 }): CartItem {
   const price = apiItem.variant?.price ?? apiItem.product.price;
+  const attrs = apiItem.variant?.attributes ?? {};
+  const size  = attrs.size  ?? null;
+  const color = attrs.color ?? null;
+
+  // Build human-readable variant label e.g. "30ml / White"
+  const variantParts = [size, color].filter(Boolean);
+  const variantName  = apiItem.variant
+    ? (variantParts.length > 0 ? variantParts.join(' / ') : apiItem.variant.name)
+    : null;
+
   return {
-    // id used by stepper to find item in cart — variantId if present, else productId
-    id: apiItem.variantId ?? apiItem.productId,
-    cartItemId: apiItem.id,       // DB row ID → used for PATCH/DELETE
-    productId:  apiItem.productId, // real product ID → used for POST
-    variantId:  apiItem.variantId,
-    name:       apiItem.product.name,
+    id:          apiItem.variantId ?? apiItem.productId,
+    cartItemId:  apiItem.id,
+    productId:   apiItem.productId,
+    variantId:   apiItem.variantId,
+    name:        apiItem.product.name,
     price,
-    quantity:   apiItem.quantity,
-    image:      apiItem.product.image ?? '',
+    quantity:    apiItem.quantity,
+    image:       apiItem.product.image ?? '',
+    variantName,
+    size,
+    color,
   };
 }
 
