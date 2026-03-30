@@ -87,6 +87,7 @@ export default function StickyBottomBar({
               size={size}
               color={color}
               variantImage={variantImage}
+              initialQuantity={quantity}
               className="flex-1"
             />
 
