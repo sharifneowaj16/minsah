@@ -176,6 +176,15 @@ export default function ProductClient({
   const [expandIngredients, setExpandIngredients] = useState(false);
   const [variantImageOverride, setVariantImageOverride] = useState<string | null>(null);
 
+  // variant display info for StickyBottomBar → AddToCartStepper
+  const selectedVariantObj = product.variants.find(v => v.id === selectedVariantId) ?? null;
+  const variantSize        = selectedVariantObj?.attributes?.size  ?? null;
+  const variantColor       = selectedVariantObj?.attributes?.color ?? null;
+  const variantImage       = selectedVariantObj?.image ?? null;
+  const variantNameLabel   = selectedVariantObj
+    ? ([variantSize, variantColor].filter(Boolean).join(' / ') || selectedVariantObj.name)
+    : null;
+
   const discountPct =
     product.originalPrice && product.originalPrice > product.price
       ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -413,6 +422,10 @@ export default function ProductClient({
         productImage={product.image}
         price={totalPrice}
         variantId={selectedVariantId}
+        variantName={variantNameLabel}
+        size={variantSize}
+        color={variantColor}
+        variantImage={variantImage}
         quantity={quantity}
         inStock={product.inStock}
         whatsappNumber={WHATSAPP_NUMBER}
