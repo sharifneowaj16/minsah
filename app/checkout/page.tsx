@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { formatPrice, convertUSDtoBDT } from '@/utils/currency';
-import SocialLoginModal from '../products/[id]/components/SocialLoginModal';
+import SocialLoginModal from '@/app/products/[id]/components/SocialLoginModal';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PaymentMethod = 'cod' | 'bkash' | 'nagad' | 'card';
@@ -54,7 +54,7 @@ export default function CheckoutPage() {
   }, [items.length, status, router]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleLoginSuccess = useCallback(() => {
+  const handleLoginSuccess = useCallback((_userId: string, _userName: string) => {
     setShowLoginModal(false);
   }, []);
 
