@@ -11,6 +11,10 @@ interface AddToCartStepperProps {
   price: number;
   maxStock?: number;
   variantId?: string | null;
+  variantName?: string | null;  // e.g. "30ml / White"
+  size?: string | null;
+  color?: string | null;
+  variantImage?: string | null;
   className?: string;
 }
 
@@ -21,6 +25,10 @@ export default function AddToCartStepper({
   price,
   maxStock = 99,
   variantId,
+  variantName,
+  size,
+  color,
+  variantImage,
   className = '',
 }: AddToCartStepperProps) {
   const { items, addItem, updateQuantity, removeItem } = useCart();
@@ -33,13 +41,17 @@ export default function AddToCartStepper({
   const handleAdd = () => {
     startTransition(async () => {
       await addItem({
-        id: cartItemId,
-        productId,           // real product ID for API POST
-        variantId: variantId ?? null,
-        name: productName,
+        id:           cartItemId,
+        productId,
+        variantId:    variantId ?? null,
+        variantName:  variantName ?? null,
+        size:         size ?? null,
+        color:        color ?? null,
+        variantImage: variantImage ?? null,
+        name:         productName,
         price,
-        quantity: 1,
-        image: productImage,
+        quantity:     1,
+        image:        variantImage || productImage,
       });
     });
   };
