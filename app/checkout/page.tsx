@@ -22,6 +22,7 @@ function CheckoutContent() {
     total,
     selectedAddress,
     selectedPaymentMethod,
+    clearCart,
   } = useCart();
 
   const [expandedSection, setExpandedSection] = useState<'address' | 'payment' | 'summary' | null>('address');
@@ -84,6 +85,7 @@ function CheckoutContent() {
         return;
       }
 
+      clearCart();
       router.push(data.redirectURL || '/checkout/order-confirmed');
     } catch {
       alert('Network error. Please check your connection and try again.');
