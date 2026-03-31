@@ -28,7 +28,7 @@ const PAYMENT_OPTIONS: { id: PaymentMethod; label: string; sub: string; icon: Re
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function CheckoutPage() {
   const router                     = useRouter();
-  const { data: session, status }  = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const {
     items, subtotal, shippingCost, tax, total, discount,
     addresses, selectedAddress, setSelectedAddress, clearCart,
@@ -42,23 +42,29 @@ export default function CheckoutPage() {
   const [placing, setPlacing]                 = useState(false);
   const [error, setError]                     = useState<string | null>(null);
 
-  // Show login modal if not logged in
+  // Show login modal if unauthenticated — do NOT redirect away from /checkout
   useEffect(() => {
     if (status === 'unauthenticated') setShowLoginModal(true);
-    else setShowLoginModal(false);
+    else if (status === 'authenticated') setShowLoginModal(false);
   }, [status]);
 
-  // Redirect to cart if empty
+  // Redirect to cart only if cart is empty AND user is already authenticated
   useEffect(() => {
-    if (items.length === 0 && status !== 'loading') router.replace('/cart');
+    if (items.length === 0 && status === 'authenticated') router.replace('/cart');
   }, [items.length, status, router]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleLoginSuccess = useCallback((_userId: string, _userName: string) => {
+  // ── After successful login inside modal ────────────────────────────────────
+  const handleLoginSuccess = useCallback(async (_userId: string, _userName: string) => {
+    // Refresh NextAuth session so useSession() picks up the new auth_token cookie
+    await updateSession();
     setShowLoginModal(false);
-  }, []);
+  }, [updateSession]);
 
   const handlePlaceOrder = async () => {
+    if (status !== 'authenticated') {
+      setShowLoginModal(true);
+      return;
+    }
     if (!selectedAddress) { setError('ডেলিভারি ঠিকানা নির্বাচন করুন।'); return; }
     if (items.length === 0) { setError('Cart খালি।'); return; }
 
@@ -75,10 +81,11 @@ export default function CheckoutPage() {
       const res = await fetch('/api/orders', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           items:         orderItems,
           addressId:     selectedAddress.id,
-          addressData:   selectedAddress,   // fallback if id is local
+          addressData:   selectedAddress,
           paymentMethod,
           shippingCost,
           customerNote:  customerNote || undefined,
@@ -88,11 +95,15 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        // If auth expired mid-session, show modal instead of generic error
+        if (res.status === 401) {
+          setShowLoginModal(true);
+          return;
+        }
         setError(data.error || 'Order দিতে সমস্যা হয়েছে।');
         return;
       }
 
-      // Clear cart and redirect
       await clearCart();
       router.push(`/checkout/order-confirmed?orderNumber=${data.orderNumber}`);
 
@@ -125,9 +136,7 @@ export default function CheckoutPage() {
       {/* ── Login Modal ─────────────────────────────────────────── */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          {/* Sheet */}
           <div className="relative w-full sm:max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl">
             <SocialLoginModal
               purpose="checkout"
@@ -278,7 +287,6 @@ export default function CheckoutPage() {
               ))}
             </div>
 
-            {/* Customer note */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <label className="text-xs font-semibold text-[#3D1F0E] uppercase tracking-wide block mb-2">
                 📝 বিশেষ নির্দেশনা (ঐচ্ছিক)
@@ -316,7 +324,6 @@ export default function CheckoutPage() {
               🧾 অর্ডার Review
             </h2>
 
-            {/* Items */}
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-[#F5E9DC]">
                 <p className="text-xs font-semibold text-[#8B5E3C] uppercase tracking-wide">পণ্য সমূহ</p>
@@ -347,7 +354,6 @@ export default function CheckoutPage() {
               ))}
             </div>
 
-            {/* Address summary */}
             {selectedAddress && (
               <div className="bg-white rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
@@ -362,7 +368,6 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Payment summary */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-[#8B5E3C] uppercase tracking-wide">পেমেন্ট</p>
@@ -373,7 +378,6 @@ export default function CheckoutPage() {
               </p>
             </div>
 
-            {/* Price breakdown */}
             <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
               <p className="text-xs font-semibold text-[#8B5E3C] uppercase tracking-wide mb-1">মূল্য বিবরণ</p>
               {[
@@ -395,7 +399,6 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-2xl">
                 ⚠️ {error}
@@ -424,6 +427,24 @@ export default function CheckoutPage() {
           </>
         )}
       </div>
+
+      {/* ── Bottom bar for unauthenticated ──────────────────────── */}
+      {status === 'unauthenticated' && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E8D5C0] p-4 z-30">
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs text-[#8B5E3C]">Total</p>
+              <p className="font-bold text-[#3D1F0E]">{formatPrice(bdtTotal)}</p>
+            </div>
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="flex-1 py-3.5 rounded-2xl bg-[#3D1F0E] text-[#F5E6D3] font-bold text-sm hover:bg-[#2A1509] transition"
+            >
+              Login to Place Order
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
