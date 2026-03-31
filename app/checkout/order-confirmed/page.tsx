@@ -71,7 +71,7 @@ function OrderConfirmedContent() {
           শপিং চালিয়ে যান
         </Link>
         <Link
-          href="/orders"
+          href="/account/orders"
           className="block w-full bg-white text-[#3D1F0E] text-center py-4 rounded-2xl font-bold text-base border-2 border-[#E8D5C0] hover:border-[#3D1F0E] transition"
         >
           আমার অর্ডার দেখুন
