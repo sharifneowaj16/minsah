@@ -14,13 +14,14 @@ import {
   ChevronRight,
   BarChart3,
   Sparkles,
-  Hand,
   ArrowRight,
+  Trophy,
+  Package,
+  Bell,
 } from 'lucide-react';
 import { useAuth, useUserPermissions } from '@/contexts/AuthContext';
 
-// ✅ Icon map — string থেকে component এ convert করার জন্য
-// Server থেকে icon name string আসবে, এখানে সেটা render হবে
+// ── Icon map ──────────────────────────────────────────────────────────────────
 const ICON_MAP: Record<string, React.ElementType> = {
   ShoppingBag,
   Heart,
@@ -31,6 +32,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   CheckCircle,
   BarChart3,
   Sparkles,
+  Package,
 };
 
 function DynamicIcon({ name, className }: { name: string; className?: string }) {
@@ -39,6 +41,7 @@ function DynamicIcon({ name, className }: { name: string; className?: string }) 
   return <Icon className={className} />;
 }
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface DashboardData {
   recentOrders: Array<{
     id: string;
@@ -60,14 +63,14 @@ interface QuickAction {
   name: string;
   description: string;
   href: string;
-  icon: string; // ✅ string, not React component
+  icon: string;
   color: string;
 }
 
 interface UpcomingFeature {
   name: string;
   description: string;
-  icon: string; // ✅ string, not React component
+  icon: string;
   progress: number;
 }
 
@@ -77,586 +80,261 @@ interface DashboardClientProps {
   upcomingFeatures: UpcomingFeature[];
 }
 
-const colorMap: Record<string, { bg: string; text: string }> = {
-  purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
-  yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600' },
-  blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
-  green: { bg: 'bg-green-100', text: 'text-green-600' },
-  pink: { bg: 'bg-pink-100', text: 'text-pink-600' },
+// ── Color map ─────────────────────────────────────────────────────────────────
+const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
+  purple: { bg: 'bg-violet-50',  text: 'text-violet-600',  ring: 'ring-violet-100'  },
+  yellow: { bg: 'bg-amber-50',   text: 'text-amber-500',   ring: 'ring-amber-100'   },
+  blue:   { bg: 'bg-blue-50',    text: 'text-blue-500',    ring: 'ring-blue-100'    },
+  green:  { bg: 'bg-emerald-50', text: 'text-emerald-600', ring: 'ring-emerald-100' },
+  pink:   { bg: 'bg-pink-50',    text: 'text-pink-500',    ring: 'ring-pink-100'    },
 };
 
+// ── Status badge ──────────────────────────────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    delivered:  'bg-emerald-50 text-emerald-700',
+    shipped:    'bg-blue-50 text-blue-700',
+    processing: 'bg-amber-50 text-amber-700',
+    cancelled:  'bg-red-50 text-red-700',
+    pending:    'bg-gray-100 text-gray-600',
+  };
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${map[status] ?? 'bg-gray-100 text-gray-600'}`}>
+      {status}
+    </span>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function DashboardClient({ initialData, quickActions, upcomingFeatures }: DashboardClientProps) {
   const { user } = useAuth();
   const { isVip, isPremium } = useUserPermissions();
   const [dashboardData] = useState(initialData);
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
+
+  const memberLabel    = isPremium ? 'Premium Member' : isVip ? 'VIP Member' : 'Member';
+  const memberSubtitle = isPremium
+    ? 'Exclusive access to all features'
+    : isVip
+    ? 'Enjoy your exclusive VIP benefits'
+    : 'Your beauty journey continues here';
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
 
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg shadow-lg p-8 text-white">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+      {/* ── Hero card ──────────────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-pink-500 p-6 text-white shadow-lg">
+        <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute -bottom-10 right-12 h-24 w-24 rounded-full bg-white/5" />
+
+        <div className="relative flex items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold mb-2">
-                Welcome back, {user.firstName}!
-              </h1>
-              <Hand className="w-8 h-8 text-white animate-pulse" />
+            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 text-xl font-semibold ring-2 ring-white/30">
+              {user.firstName?.[0]}{user.lastName?.[0]}
             </div>
-            <p className="text-purple-100">
-              {isPremium
-                ? 'Thank you for being a Premium member! You have exclusive access to all our features.'
-                : isVip
-                ? 'Welcome back, VIP member! Enjoy your exclusive benefits.'
-                : 'Your beauty journey continues here.'}
+            <h1 className="text-xl font-semibold leading-tight">
+              Welcome back, {user.firstName}! 👋
+            </h1>
+            <p className="mt-1 text-sm text-purple-100">{memberSubtitle}</p>
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-xs font-medium">
+              ⭐ {memberLabel}
+            </span>
+          </div>
+
+          <div className="shrink-0 rounded-2xl bg-white/15 px-4 py-3 text-right backdrop-blur-sm">
+            <p className="text-xs text-purple-100">Loyalty Points</p>
+            <p className="text-2xl font-bold">{user.loyaltyPoints.toLocaleString()}</p>
+            {dashboardData.loyaltyPointsExpiring > 0 && (
+              <p className="mt-0.5 text-xs text-yellow-200">
+                {dashboardData.loyaltyPointsExpiring} expiring soon
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats row ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { icon: <Package size={18} />, label: 'Orders',    value: dashboardData.recentOrders.length, iconBg: 'bg-violet-50 text-violet-500'  },
+          { icon: <Heart size={18} />,   label: 'Wishlist',  value: dashboardData.wishlistItems,       iconBg: 'bg-pink-50 text-pink-500'      },
+          { icon: <MapPin size={18} />,  label: 'Addresses', value: dashboardData.savedAddresses,      iconBg: 'bg-emerald-50 text-emerald-600' },
+        ].map((s) => (
+          <div key={s.label} className="flex flex-col items-center gap-1.5 rounded-2xl bg-white py-4 shadow-sm ring-1 ring-gray-100">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${s.iconBg}`}>{s.icon}</span>
+            <span className="text-xl font-semibold text-gray-800">{s.value}</span>
+            <span className="text-xs text-gray-400">{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Points redeem banner ───────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50">
+            <Trophy size={20} className="text-violet-600" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Loyalty Points</p>
+            <p className="text-xl font-semibold leading-tight text-violet-600">
+              {user.loyaltyPoints.toLocaleString()}
             </p>
           </div>
-          <div className="mt-4 md:mt-0 text-center md:text-right">
-            <div className="text-sm text-purple-100 mb-1">Your Loyalty Points</div>
-            <div className="text-3xl font-bold">{user.loyaltyPoints.toLocaleString()}</div>
-            {dashboardData.loyaltyPointsExpiring > 0 && (
-              <div className="text-xs text-yellow-200 mt-1">
-                {dashboardData.loyaltyPointsExpiring} expiring {new Date(dashboardData.expiryDate).toLocaleDateString()}
-              </div>
-            )}
-          </div>
+        </div>
+        <Link
+          href="/account/loyalty"
+          className="shrink-0 rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
+        >
+          Redeem
+        </Link>
+      </div>
+
+      {/* ── Notification nudge ─────────────────────────────────────────────── */}
+      {dashboardData.unreadNotifications > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <Bell size={15} className="shrink-0 text-blue-500" />
+          <p className="text-sm text-blue-800">
+            You have <strong>{dashboardData.unreadNotifications}</strong> new offers waiting for you.
+          </p>
+        </div>
+      )}
+
+      {/* ── Quick actions ──────────────────────────────────────────────────── */}
+      <div>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">Quick Actions</p>
+        <div className="grid grid-cols-2 gap-3">
+          {quickActions.map((action) => {
+            const c = colorMap[action.color] ?? colorMap.purple;
+            return (
+              <Link
+                key={action.name}
+                href={action.href}
+                className="group flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 transition-all hover:border-violet-100 hover:shadow-sm"
+              >
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-4 transition-transform group-hover:scale-105 ${c.bg} ${c.text} ${c.ring}`}>
+                  <DynamicIcon name={action.icon} className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-800">{action.name}</p>
+                  <p className="truncate text-xs text-gray-400">{action.description}</p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <ShoppingBag className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Total Orders</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.recentOrders.length}</p>
-            </div>
-          </div>
+      {/* ── Recent orders ──────────────────────────────────────────────────── */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">Recent Orders</p>
+          <Link href="/account/orders" className="text-xs font-medium text-violet-600 hover:underline">
+            View all
+          </Link>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-pink-100 rounded-lg">
-              <Heart className="w-6 h-6 text-pink-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Wishlist</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.wishlistItems}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <Star className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Reviews</p>
-              <p className="text-2xl font-bold text-gray-900">0</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <MapPin className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Addresses</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.savedAddresses}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Recent Orders */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
-            <Link href="/account/orders" className="text-purple-600 hover:text-purple-500 text-sm font-medium">
-              View All
+        {dashboardData.recentOrders.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-gray-200 py-10 text-center">
+            <ShoppingBag size={30} className="text-gray-300" />
+            <p className="text-sm text-gray-400">এখনো কোনো order নেই</p>
+            <Link
+              href="/shop"
+              className="rounded-xl bg-violet-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
+            >
+              Shop করুন
             </Link>
           </div>
-          <div className="p-6">
-            {dashboardData.recentOrders.length === 0 ? (
-              <div className="text-center py-8">
-                <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 mb-4">এখনো কোনো order নেই</p>
-                <Link href="/shop" className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-                  Shop করুন
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {dashboardData.recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="font-medium text-gray-900">{order.orderNumber}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          order.status === 'delivered' ? 'bg-green-100 text-green-800'
-                          : order.status === 'shipped' ? 'bg-blue-100 text-blue-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {order.status}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {order.itemCount} items • ৳{order.total.toFixed(0)} • {new Date(order.createdAt).toLocaleDateString('bn-BD')}
-                      </p>
-                    </div>
-                    <Link href={`/account/orders/${order.id}`} className="p-2 text-gray-400 hover:text-purple-600 transition">
-                      <ChevronRight className="w-5 h-5" />
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            )}
+        ) : (
+          <div className="space-y-2">
+            {dashboardData.recentOrders.map((order) => (
+              <Link
+                key={order.id}
+                href={`/account/orders/${order.id}`}
+                className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3.5 transition-all hover:border-violet-100 hover:shadow-sm"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{order.orderNumber}</p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {new Date(order.createdAt).toLocaleDateString('en-BD', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })}
+                    {' · '}{order.itemCount} {order.itemCount === 1 ? 'item' : 'items'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <StatusBadge status={order.status} />
+                  <span className="text-sm font-semibold text-gray-800">
+                    ৳{order.total.toLocaleString()}
+                  </span>
+                  <ChevronRight size={14} className="text-gray-300" />
+                </div>
+              </Link>
+            ))}
           </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-2 gap-4">
-              {quickActions.map((action) => {
-                const colors = colorMap[action.color] || colorMap.purple;
-                return (
-                  <Link
-                    key={action.name}
-                    href={action.href}
-                    className="group p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition"
-                  >
-                    <div className={`inline-flex p-2 rounded-lg ${colors.bg} ${colors.text} mb-3 group-hover:scale-110 transition-transform`}>
-                      {/* ✅ Icon name string থেকে component render */}
-                      <DynamicIcon name={action.icon} className="w-5 h-5" />
-                    </div>
-                    <h3 className="font-medium text-gray-900 group-hover:text-purple-600 transition text-sm">
-                      {action.name}
-                    </h3>
-                    <p className="text-xs text-gray-600 mt-1">{action.description}</p>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Alerts */}
+      {/* ── Points expiry alert ────────────────────────────────────────────── */}
       {dashboardData.loyaltyPointsExpiring > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <h3 className="font-medium text-yellow-800">Points Expiring Soon</h3>
-              <p className="text-yellow-700 text-sm mt-1">
-                আপনার {dashboardData.loyaltyPointsExpiring} points {new Date(dashboardData.expiryDate).toLocaleDateString()} এ expire হবে। এখনই use করুন!
-              </p>
-              <Link href="/account/loyalty" className="inline-flex items-center text-yellow-800 hover:text-yellow-600 text-sm font-medium mt-2">
-                Points দেখুন
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Link>
-            </div>
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-4">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-500" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800">Points expiring soon!</p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              আপনার {dashboardData.loyaltyPointsExpiring} points{' '}
+              {new Date(dashboardData.expiryDate).toLocaleDateString()} এ expire হবে।
+            </p>
+            <Link
+              href="/account/loyalty"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-amber-800 hover:underline"
+            >
+              Points দেখুন <ChevronRight size={12} />
+            </Link>
           </div>
         </div>
       )}
 
-      {/* Upcoming Features */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">Coming Soon</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* ── Coming soon ────────────────────────────────────────────────────── */}
+      <div>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">Coming Soon</p>
+        <div className="space-y-2">
           {upcomingFeatures.map((feature) => (
-            <div key={feature.name} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3 mb-3">
-                {/* ✅ Icon name string থেকে component render */}
-                <DynamicIcon name={feature.icon} className="w-6 h-6 text-purple-600" />
-                <h3 className="font-medium text-gray-900 text-sm">{feature.name}</h3>
+            <div key={feature.name} className="rounded-2xl border border-gray-100 bg-white px-4 py-4">
+              <div className="mb-1 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <DynamicIcon name={feature.icon} className="h-4 w-4 text-violet-500" />
+                  <p className="text-sm font-medium text-gray-800">{feature.name}</p>
+                </div>
+                <span className="text-xs font-medium text-violet-600">{feature.progress}%</span>
               </div>
-              <p className="text-sm text-gray-600 mb-4">{feature.description}</p>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs text-gray-600">
-                  <span>Progress</span>
-                  <span>{feature.progress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${feature.progress}%` }}
-                  />
-                </div>
+              <p className="mb-2.5 text-xs text-gray-400">{feature.description}</p>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-1.5 rounded-full bg-violet-500 transition-all duration-700"
+                  style={{ width: `${feature.progress}%` }}
+                />
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Beauty Tip */}
-      <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-600" />
+      {/* ── Beauty tip ─────────────────────────────────────────────────────── */}
+      <div className="rounded-3xl bg-gradient-to-br from-pink-50 to-purple-50 p-6">
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-gray-800">
+          <Sparkles size={18} className="text-violet-500" />
           Beauty Tip of the Day
         </h2>
-        <p className="text-gray-700 mb-4">
-          Did you know? Applying serum to slightly damp skin can increase absorption by up to 50%. Pat your face gently with a towel after cleansing, then apply your serum while it&apos;s still slightly moist for maximum benefits!
+        <p className="text-sm leading-relaxed text-gray-600">
+          Did you know? Applying serum to slightly damp skin can increase absorption by up to 50%.
+          Pat your face gently after cleansing, then apply your serum while still slightly moist!
         </p>
-        <Link href="/blog" className="inline-flex items-center text-purple-600 hover:text-purple-500 font-medium gap-1">
-          Read More Tips
-          <ArrowRight className="w-4 h-4" />
+        <Link href="/blog" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-violet-600 hover:underline">
+          Read more tips <ArrowRight size={14} />
         </Link>
       </div>
 
     </div>
   );
 }
-
-// 'use client';
-
-// import { useState } from 'react';
-// import Link from 'next/link';
-// import {
-//   ShoppingBag,
-//   Heart,
-//   MapPin,
-//   Star,
-//   Gift,
-//   Users,
-//   Truck,
-//   CreditCard,
-//   Clock,
-//   CheckCircle,
-//   AlertTriangle,
-//   ChevronRight,
-//   BarChart3,
-//   Sparkles,
-//   Hand,
-//   ArrowRight
-// } from 'lucide-react';
-// import { useAuth, useUserPermissions } from '@/contexts/AuthContext';
-
-// interface DashboardData {
-//   recentOrders: Array<{
-//     id: string;
-//     orderNumber: string;
-//     status: string;
-//     total: number;
-//     createdAt: Date;
-//     itemCount: number;
-//   }>;
-//   wishlistItems: number;
-//   savedAddresses: number;
-//   unreadNotifications: number;
-//   upcomingOrderDate: Date;
-//   loyaltyPointsExpiring: number;
-//   expiryDate: Date;
-// }
-
-// interface QuickAction {
-//   name: string;
-//   description: string;
-//   href: string;
-//   icon: any;
-//   color: string;
-// }
-
-// interface UpcomingFeature {
-//   name: string;
-//   description: string;
-//   icon: any;
-//   progress: number;
-// }
-
-// interface DashboardClientProps {
-//   initialData: DashboardData;
-//   quickActions: QuickAction[];
-//   upcomingFeatures: UpcomingFeature[];
-// }
-
-// export function DashboardClient({ initialData, quickActions, upcomingFeatures }: DashboardClientProps) {
-//   const { user } = useAuth();
-//   const { isVip, isPremium } = useUserPermissions();
-//   const [dashboardData] = useState(initialData);
-
-//   if (!user) {
-//     return null; // Layout will handle the redirect
-//   }
-
-//   return (
-//     <div className="space-y-6">
-//       {/* Welcome Header */}
-//       <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg shadow-lg p-8 text-white">
-//         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-//           <div>
-//             <div className="flex items-center">
-//               <h1 className="text-3xl font-bold mb-2 mr-2">
-//                 Welcome back, {user.firstName}!
-//               </h1>
-//               <Hand className="w-8 h-8 text-white animate-pulse" />
-//             </div>
-//             <p className="text-purple-100">
-//               {isPremium
-//                 ? 'Thank you for being a Premium member! You have exclusive access to all our features.'
-//                 : isVip
-//                 ? 'Welcome back, VIP member! Enjoy your exclusive benefits.'
-//                 : 'Your beauty journey continues here.'}
-//             </p>
-//           </div>
-//           <div className="mt-4 md:mt-0 text-center md:text-right">
-//             <div className="text-sm text-purple-100 mb-1">Your Loyalty Points</div>
-//             <div className="text-3xl font-bold">{user.loyaltyPoints.toLocaleString()}</div>
-//             {dashboardData.loyaltyPointsExpiring > 0 && (
-//               <div className="text-xs text-yellow-200 mt-1">
-//                 {dashboardData.loyaltyPointsExpiring} expiring {dashboardData.expiryDate.toLocaleDateString()}
-//               </div>
-//             )}
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Quick Stats */}
-//       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-//         <div className="bg-white rounded-lg shadow-sm p-6">
-//           <div className="flex items-center space-x-3">
-//             <div className="p-3 bg-purple-100 rounded-lg">
-//               <ShoppingBag className="w-6 h-6 text-purple-600" />
-//             </div>
-//             <div>
-//               <p className="text-sm text-gray-600">Total Orders</p>
-//               <p className="text-2xl font-bold text-gray-900">{dashboardData.recentOrders.length + 8}</p>
-//             </div>
-//           </div>
-//         </div>
-
-//         <div className="bg-white rounded-lg shadow-sm p-6">
-//           <div className="flex items-center space-x-3">
-//             <div className="p-3 bg-pink-100 rounded-lg">
-//               <Heart className="w-6 h-6 text-pink-600" />
-//             </div>
-//             <div>
-//               <p className="text-sm text-gray-600">Wishlist Items</p>
-//               <p className="text-2xl font-bold text-gray-900">{dashboardData.wishlistItems}</p>
-//             </div>
-//           </div>
-//         </div>
-
-//         <div className="bg-white rounded-lg shadow-sm p-6">
-//           <div className="flex items-center space-x-3">
-//             <div className="p-3 bg-yellow-100 rounded-lg">
-//               <Star className="w-6 h-6 text-yellow-600" />
-//             </div>
-//             <div>
-//               <p className="text-sm text-gray-600">Reviews Written</p>
-//               <p className="text-2xl font-bold text-gray-900">5</p>
-//             </div>
-//           </div>
-//         </div>
-
-//         <div className="bg-white rounded-lg shadow-sm p-6">
-//           <div className="flex items-center space-x-3">
-//             <div className="p-3 bg-green-100 rounded-lg">
-//               <MapPin className="w-6 h-6 text-green-600" />
-//             </div>
-//             <div>
-//               <p className="text-sm text-gray-600">Saved Addresses</p>
-//               <p className="text-2xl font-bold text-gray-900">{dashboardData.savedAddresses}</p>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-//         {/* Recent Orders */}
-//         <div className="bg-white rounded-lg shadow-sm">
-//           <div className="p-6 border-b border-gray-200">
-//             <div className="flex items-center justify-between">
-//               <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
-//               <Link
-//                 href="/account/orders"
-//                 className="text-purple-600 hover:text-purple-500 text-sm font-medium"
-//               >
-//                 View All
-//               </Link>
-//             </div>
-//           </div>
-//           <div className="p-6">
-//             {dashboardData.recentOrders.length === 0 ? (
-//               <div className="text-center py-8">
-//                 <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-//                 <p className="text-gray-600 mb-4">No orders yet</p>
-//                 <Link
-//                   href="/shop"
-//                   className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-//                 >
-//                   Start Shopping
-//                 </Link>
-//               </div>
-//             ) : (
-//               <div className="space-y-4">
-//                 {dashboardData.recentOrders.map((order) => (
-//                   <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-//                     <div className="flex-1">
-//                       <div className="flex items-center space-x-3">
-//                         <h3 className="font-medium text-gray-900">{order.orderNumber}</h3>
-//                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-//                           order.status === 'delivered'
-//                             ? 'bg-green-100 text-green-800'
-//                             : order.status === 'shipped'
-//                             ? 'bg-blue-100 text-blue-800'
-//                             : 'bg-yellow-100 text-yellow-800'
-//                         }`}>
-//                           {order.status}
-//                         </span>
-//                       </div>
-//                       <p className="text-sm text-gray-600 mt-1">
-//                         {order.itemCount} items • ${order.total.toFixed(2)} • {order.createdAt.toLocaleDateString()}
-//                       </p>
-//                     </div>
-//                     <Link
-//                       href={`/account/orders/${order.id}`}
-//                       className="p-2 text-gray-400 hover:text-purple-600 transition"
-//                     >
-//                       <ChevronRight className="w-5 h-5" />
-//                     </Link>
-//                   </div>
-//                 ))}
-//               </div>
-//             )}
-//           </div>
-//         </div>
-
-//         {/* Quick Actions */}
-//         <div className="bg-white rounded-lg shadow-sm">
-//           <div className="p-6 border-b border-gray-200">
-//             <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-//           </div>
-//           <div className="p-6">
-//             <div className="grid grid-cols-2 gap-4">
-//               {quickActions.map((action) => (
-//                 <Link
-//                   key={action.name}
-//                   href={action.href}
-//                   className="group p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition"
-//                 >
-//                   <div className={`inline-flex p-2 rounded-lg bg-${action.color}-100 text-${action.color}-600 mb-3 group-hover:scale-110 transition-transform`}>
-//                     <action.icon className="w-5 h-5" />
-//                   </div>
-//                   <h3 className="font-medium text-gray-900 group-hover:text-purple-600 transition">
-//                     {action.name}
-//                   </h3>
-//                   <p className="text-xs text-gray-600 mt-1">{action.description}</p>
-//                 </Link>
-//               ))}
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Alerts and Notifications */}
-//       {dashboardData.unreadNotifications > 0 || dashboardData.loyaltyPointsExpiring > 0 ? (
-//         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-//           {dashboardData.loyaltyPointsExpiring > 0 && (
-//             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-//               <div className="flex items-start space-x-3">
-//                 <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-//                 <div>
-//                   <h3 className="font-medium text-yellow-800">Points Expiring Soon</h3>
-//                   <p className="text-yellow-700 text-sm mt-1">
-//                     You have {dashboardData.loyaltyPointsExpiring} points expiring on {dashboardData.expiryDate.toLocaleDateString()}. Use them before they expire!
-//                   </p>
-//                   <Link
-//                     href="/account/loyalty"
-//                     className="inline-flex items-center text-yellow-800 hover:text-yellow-600 text-sm font-medium mt-2"
-//                   >
-//                     View Rewards
-//                     <ChevronRight className="w-4 h-4 ml-1" />
-//                   </Link>
-//                 </div>
-//               </div>
-//             </div>
-//           )}
-
-//           {dashboardData.unreadNotifications > 0 && (
-//             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-//               <div className="flex items-start space-x-3">
-//                 <Gift className="w-5 h-5 text-blue-600 mt-0.5" />
-//                 <div>
-//                   <h3 className="font-medium text-blue-800">New Offers Available</h3>
-//                   <p className="text-blue-700 text-sm mt-1">
-//                     You have {dashboardData.unreadNotifications} new promotional offers tailored just for you.
-//                   </p>
-//                   <Link
-//                     href="/shop?offers=true"
-//                     className="inline-flex items-center text-blue-800 hover:text-blue-600 text-sm font-medium mt-2"
-//                   >
-//                     View Offers
-//                     <ChevronRight className="w-4 h-4 ml-1" />
-//                   </Link>
-//                 </div>
-//               </div>
-//             </div>
-//           )}
-//         </div>
-//       ) : null}
-
-//       {/* Upcoming Features */}
-//       <div className="bg-white rounded-lg shadow-sm p-6">
-//         <h2 className="text-lg font-semibold text-gray-900 mb-6">Coming Soon</h2>
-//         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-//           {upcomingFeatures.map((feature) => (
-//             <div key={feature.name} className="border border-gray-200 rounded-lg p-4">
-//               <div className="flex items-center space-x-3 mb-3">
-//                 <feature.icon className="w-6 h-6 text-purple-600" />
-//                 <h3 className="font-medium text-gray-900">{feature.name}</h3>
-//               </div>
-//               <p className="text-sm text-gray-600 mb-4">{feature.description}</p>
-//               <div className="space-y-2">
-//                 <div className="flex justify-between text-xs text-gray-600">
-//                   <span>Progress</span>
-//                   <span>{feature.progress}%</span>
-//                 </div>
-//                 <div className="w-full bg-gray-200 rounded-full h-2">
-//                   <div
-//                     className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-//                     style={{ width: `${feature.progress}%` }}
-//                   />
-//                 </div>
-//               </div>
-//             </div>
-//           ))}
-//         </div>
-//       </div>
-
-//       {/* Beauty Tips */}
-//       <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-6">
-//         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-//           <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
-//           Beauty Tip of the Day
-//         </h2>
-//         <p className="text-gray-700 mb-4">
-//           Did you know? Applying serum to slightly damp skin can increase absorption by up to 50%. Pat your face gently with a towel after cleansing, then apply your serum while it's still slightly moist for maximum benefits!
-//         </p>
-//         <Link
-//           href="/blog"
-//           className="inline-flex items-center text-purple-600 hover:text-purple-500 font-medium"
-//         >
-//           Read More Tips
-//           <ArrowRight className="w-4 h-4 ml-1" />
-//         </Link>
-//       </div>
-//     </div>
-//   );
-// }
